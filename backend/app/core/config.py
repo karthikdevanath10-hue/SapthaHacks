@@ -1,21 +1,28 @@
 import os
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from typing import List
 
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "TruthLens Multimodal Forensic Engine"
-    VERSION: str = "2.0.0"
+    VERSION: str = "2.1.0"
     API_V1_STR: str = "/api"
     
     # AI & Cloud Configuration
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
-    GEMINI_FALLBACK_MODEL: str = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_FALLBACK_MODEL: str = ""
     
     # Supabase Configuration
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+
+    RATE_LIMIT_ANALYZE: int = 30
+    RATE_LIMIT_WINDOW_SECONDS: int = 600
     
     # Upload & Storage settings
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
@@ -32,11 +39,16 @@ class Settings(BaseSettings):
         ".txt"
     ]
     
-    # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000", "*"]
+    # CORS. Wildcard is omitted because credentialed browser requests reject it.
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
     class Config:
-        env_file = ".env"
+        env_file = str(BACKEND_ROOT / ".env")
         extra = "ignore"
 
 settings = Settings()

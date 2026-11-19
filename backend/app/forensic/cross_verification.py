@@ -1,10 +1,13 @@
 import os
 import json
 import base64
-import httpx
+import logging
 from typing import Tuple, List, Optional
 from app.models.schemas import CaptionComparisonResult, EvidenceItem, AIVisualResult
 from app.core.config import settings
+from app.forensic.gemini_client import gemini_json
+
+logger = logging.getLogger("truthlens.correlation")
 
 CAPTION_CROSS_VERIFICATION_PROMPT = """
 You are a Digital Forensics Fact-Checking Specialist.
@@ -79,42 +82,17 @@ async def cross_verify_caption_and_image(
             .replace("{source_context}", source_context or "Not specified")
         )
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={api_key}"
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": prompt_text},
-                        {
-                            "inline_data": {
-                                "mime_type": mime_type,
-                                "data": b64_image
-                            }
-                        },
-                        {"text": "Analyze image and caption correspondence. Return strictly valid JSON."}
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.2,
-                "response_mime_type": "application/json"
-            }
-        }
+        parsed, error, model_used = await gemini_json([
+            {"text": prompt_text},
+            {"inline_data": {"mime_type": mime_type, "data": b64_image}},
+            {"text": "Analyze image and caption correspondence. A mismatch is misattribution, not proof the image is synthetic. Return strictly valid JSON."},
+        ])
+        if error:
+            logger.warning("Image claim comparison unavailable: %s", error)
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
-            if response.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
-                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
-                response = await client.post(fallback_url, json=payload)
-
-        if response.status_code == 200:
-            res_json = response.json()
-            candidates = res_json.get("candidates", [])
-            if candidates:
-                raw_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
-                parsed = json.loads(raw_text.strip("```json").strip("```").strip())
-                
-                verdict = parsed.get("consistency_verdict", "Consistent")
+        if parsed:
+                model_label = model_used or settings.GEMINI_MODEL
+                verdict = parsed.get("consistency_verdict", "Not assessed")
                 discrepancies = parsed.get("discrepancy_details", [])
                 match_score = float(parsed.get("semantic_match_score", 1.0))
                 explanation = parsed.get("explanation", "Caption examined against visual evidence.")
@@ -128,11 +106,11 @@ async def cross_verify_caption_and_image(
                         title=f"Context-Image Discordance ({verdict})",
                         layer="Caption Cross-Verification",
                         severity=severity,
-                        confidence="High Confidence",
+                        confidence="Moderate Confidence",
                         explanation=explanation,
                         why_flagged=f"Claim discrepancy identified: {why_matters}",
                         limitations="A narrative or context mismatch indicates misattribution or false framing, not that the image pixels were synthesized.",
-                        evidence_source=f"Gemini Cross-Modal Text-Vision Verification ({settings.GEMINI_MODEL})",
+                        evidence_source=f"Gemini Cross-Modal Text-Vision Verification ({model_label})",
                         score_impact=score_impact
                     ))
                 else:
@@ -141,11 +119,11 @@ async def cross_verify_caption_and_image(
                         title="Caption-Image Semantic Consistency",
                         layer="Caption Cross-Verification",
                         severity="informational",
-                        confidence="High Confidence",
+                        confidence="Moderate Confidence",
                         explanation=explanation,
-                        why_flagged="Submitted caption faithfully reflects the visible scene and entities.",
+                        why_flagged="The model reported that the caption agrees with the visible scene. That is not proof the image is authentic.",
                         limitations="A consistent caption can still accompany a fully synthetic or repurposed image.",
-                        evidence_source=f"Gemini Cross-Modal Text-Vision Verification ({settings.GEMINI_MODEL})",
+                        evidence_source=f"Gemini Cross-Modal Text-Vision Verification ({model_label})",
                         score_impact=0
                     ))
 
@@ -218,19 +196,12 @@ RULES:
 }}
 """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.2, "response_mime_type": "application/json"}
-        }
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            response = await client.post(url, json=payload)
-            if response.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
-                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
-                response = await client.post(fallback_url, json=payload)
-        if response.status_code == 200:
-            parsed = json.loads(response.json()["candidates"][0]["content"]["parts"][0]["text"].strip())
-            verdict = parsed.get("consistency_verdict", "Consistent")
+        parsed, error, model_used = await gemini_json([{"text": prompt}])
+        if error:
+            logger.warning("Claim comparison unavailable: %s", error)
+        if parsed:
+            model_label = model_used or settings.GEMINI_MODEL
+            verdict = parsed.get("consistency_verdict", "Not assessed")
             discrepancies = parsed.get("discrepancy_details", [])
             match_score = float(parsed.get("semantic_match_score", 1.0))
             explanation = parsed.get("explanation", "Claim evaluated against media description.")
@@ -247,20 +218,20 @@ RULES:
                     explanation=explanation,
                     why_flagged=f"Claim asserts elements absent or contradicted in the {modality} stream.",
                     limitations=f"Misattribution indicates misleading context, not necessarily synthetic {modality} generation.",
-                    evidence_source=f"Gemini Cross-Modal Semantic Intelligence ({settings.GEMINI_MODEL})",
+                    evidence_source=f"Gemini Cross-Modal Semantic Intelligence ({model_label})",
                     score_impact=score_impact
                 ))
             else:
                 evidence_items.append(EvidenceItem(
                     id=f"CAP-{modality.upper()[:3]}-01",
-                    title=f"Claim Aligned with {modality.capitalize()} Context",
+                    title=f"Claim Reported as Aligned with {modality.capitalize()} Context",
                     layer="Cross-Modal Verification",
                     severity="informational",
-                    confidence="High Confidence",
+                    confidence="Moderate Confidence",
                     explanation=explanation,
-                    why_flagged=f"Claim matches verified {modality} entities and actions.",
+                    why_flagged="The model reported agreement. Agreement is not proof the media is authentic.",
                     limitations="Consistent description does not preclude synthetic origin.",
-                    evidence_source=f"Gemini Cross-Modal Semantic Intelligence ({settings.GEMINI_MODEL})",
+                    evidence_source=f"Gemini Cross-Modal Semantic Intelligence ({model_label})",
                     score_impact=0
                 ))
 
@@ -292,10 +263,10 @@ def _fallback_cross_verification(
     overlap = caption_words.intersection(scene_words)
     match_score = min(len(overlap) / max(len(caption_words), 1), 1.0)
 
-    verdict = "Consistent" if match_score > 0.15 else "Partially Inconsistent"
+    verdict = "Not assessed"
     explanation = (
-        f"Submitted claim '{caption[:60]}...' registered partial semantic alignment ({int(match_score*100)}%) with visual entities. "
-        "For full semantic contradiction parsing, enable live Gemini API key."
+        f"The claim comparison model was unavailable. Shared words with the recorded description: {len(overlap)}. "
+        "That overlap was not converted into a match or a contradiction."
     )
 
     evidence_items.append(EvidenceItem(

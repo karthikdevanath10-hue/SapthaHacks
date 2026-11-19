@@ -1,12 +1,14 @@
-import os
-import cv2
-import json
 import base64
-import httpx
+import logging
+from typing import Tuple, List, Dict, Any
+
+import cv2
 import numpy as np
-from typing import Tuple, List, Dict, Any, Optional
 from app.models.schemas import VideoDiagnostics, EvidenceItem, AIVisualResult
 from app.core.config import settings
+from app.forensic.gemini_client import gemini_json
+
+logger = logging.getLogger("truthlens.video")
 
 def extract_video_properties_and_frames(filepath: str, max_samples: int = 5) -> Tuple[Dict[str, Any], List[np.ndarray], List[str]]:
     cap = cv2.VideoCapture(filepath)
@@ -155,28 +157,18 @@ Return STRICTLY valid JSON:
         })
     contents_parts.append({"text": "Evaluate the keyframe temporal series for synthetic or deepfake manipulation. Return JSON only."})
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={api_key}"
-    payload = {
-        "contents": [{"parts": contents_parts}],
-        "generationConfig": {"temperature": 0.2, "response_mime_type": "application/json"}
-    }
+    parsed, error, model_used = await gemini_json(contents_parts, timeout=45.0)
+    if parsed:
+        cues = parsed.get("deepfake_visual_cues") or []
+        desc = parsed.get("scene_description") or "Video sequence evaluated by the vision model."
+        impact = int(parsed.get("score_impact") or 0)
+        note = parsed.get("temporal_coherence_evaluation") or "The model did not describe temporal coherence."
+        if model_used:
+            note = f"{note} (model: {model_used})"
+        return cues, [note], desc, impact
 
-    try:
-        async with httpx.AsyncClient(timeout=35.0) as client:
-            res = await client.post(url, json=payload)
-            if res.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
-                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
-                res = await client.post(fallback_url, json=payload)
-        if res.status_code == 200:
-            parsed = json.loads(res.json()["candidates"][0]["content"]["parts"][0]["text"].strip())
-            cues = parsed.get("deepfake_visual_cues", [])
-            desc = parsed.get("scene_description", "Video sequence evaluated.")
-            impact = int(parsed.get("score_impact", 0))
-            return cues, [parsed.get("temporal_coherence_evaluation", "Coherent motion.")], desc, impact
-    except Exception as e:
-        pass
-
-    return [], ["Gemini video reasoning completed with local fallback."], "Video sequence inspected.", 0
+    logger.warning("Video vision model unavailable: %s", error)
+    return [], [f"Video vision model was not used: {error}"], "No vision-model scene description was produced.", 0
 
 async def analyze_video_forensics(filepath: str, original_filename: str) -> Tuple[VideoDiagnostics, AIVisualResult, List[EvidenceItem]]:
     evidence_items: List[EvidenceItem] = []
@@ -237,19 +229,19 @@ async def analyze_video_forensics(filepath: str, original_filename: str) -> Tupl
             why_flagged="Gemini visual examination observed morphological inconsistencies, unnatural facial anatomy, or synthetic motion artifacts.",
             limitations="Video compression artifacts and streaming packet loss can degrade visual fidelity.",
             evidence_source=f"Gemini Multimodal Video Reasoning ({settings.GEMINI_MODEL})",
-            score_impact=max(gemini_impact, 20)
+            score_impact=min(max(gemini_impact, 0), 30)
         ))
-    else:
+    elif not facial_anomaly and temporal_jitter <= 22.0:
         evidence_items.append(EvidenceItem(
             id="VID-PASS-01",
-            title="Temporal & Anatomical Continuity Verified",
+            title="No Prominent Flags In Sampled Frames",
             layer="Temporal Video Forensics",
             severity="informational",
-            confidence="High Confidence",
-            explanation="Sampled video keyframes exhibit smooth optical flow and anatomically consistent head motion.",
-            why_flagged="No prominent face-swapping boundaries or severe temporal jitter was detected.",
-            limitations="High-end studio CGI and commercial neural re-rendering can produce seamless temporal trajectories.",
-            evidence_source="OpenCV Frame Difference & Gemini Keyframe Inspection",
+            confidence="Preliminary Observation",
+            explanation="The sampled frames did not trip the facial-boundary or temporal-jitter checks, and the vision model did not return deepfake cues.",
+            why_flagged="This is a negative observation on a small frame sample. It is not a determination that the video is authentic.",
+            limitations="Five sampled frames can miss short splices. Compression and camera motion also change inter-frame difference.",
+            evidence_source="OpenCV frame difference and optional Gemini keyframe inspection",
             score_impact=0
         ))
 

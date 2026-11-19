@@ -1,12 +1,14 @@
 import os
 import wave
-import json
 import base64
-import httpx
+import logging
 import numpy as np
-from typing import Tuple, List, Dict, Any, Optional
+from typing import Tuple, List, Dict, Any
 from app.models.schemas import AudioDiagnostics, AIVisualResult, EvidenceItem
 from app.core.config import settings
+from app.forensic.gemini_client import gemini_json
+
+logger = logging.getLogger("truthlens.audio")
 
 def extract_audio_properties(filepath: str) -> Dict[str, Any]:
     ext = os.path.splitext(filepath)[1].lower()
@@ -112,7 +114,7 @@ def analyze_audio_waveform(filepath: str) -> Tuple[float, bool, bool, List[str]]
 async def analyze_audio_with_gemini(filepath: str, meta: Dict[str, Any]) -> Tuple[float, List[str], str, int]:
     api_key = settings.GEMINI_API_KEY
     if not api_key:
-        return 0.0, [], "Voice payload evaluated via local spectral heuristics.", 0
+        return 0.0, [], "Synthetic-speech model was not configured. Local signal checks are not a voice-clone detector.", 0, "not_assessed"
 
     try:
         with open(filepath, "rb") as f:
@@ -156,43 +158,27 @@ Return STRICTLY valid JSON:
 }}
 """
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={api_key}"
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": prompt},
-                        {
-                            "inline_data": {
-                                "mime_type": audio_mime,
-                                "data": b64_audio
-                            }
-                        },
-                        {"text": "Analyze voice authenticity and synthetic indicators. Return valid JSON only."}
-                    ]
-                }
-            ],
-            "generationConfig": {"temperature": 0.2, "response_mime_type": "application/json"}
-        }
+        parsed, error, model_used = await gemini_json([
+            {"text": prompt},
+            {"inline_data": {"mime_type": audio_mime, "data": b64_audio}},
+            {"text": "Report only indicators you can describe from the audio. Return valid JSON only. voice_synthesis_score is an uncalibrated model score, not a probability the audio is fake."},
+        ], timeout=45.0)
+        if parsed:
+            syn_score = float(parsed.get("voice_synthesis_score") or 0.0)
+            anoms = (parsed.get("identified_audio_anomalies") or []) + (parsed.get("cloning_indicators_detected") or [])
+            summary = parsed.get("acoustic_environment_summary") or "Acoustic assessment completed."
+            if model_used:
+                summary = f"{summary} (model: {model_used})"
+            impact = int(parsed.get("score_impact") or 0)
+            return syn_score, anoms, summary, impact, "model_reported"
+        logger.warning("Audio model unavailable: %s", error)
+        return 0.0, [], f"Synthetic-speech model was not used: {error}", 0, "not_assessed"
 
-        async with httpx.AsyncClient(timeout=35.0) as client:
-            res = await client.post(url, json=payload)
-            if res.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
-                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
-                res = await client.post(fallback_url, json=payload)
+    except Exception as exc:
+        logger.warning("Audio model request failed: %s", exc)
+        return 0.0, [], f"Synthetic-speech model request failed: {exc}", 0, "not_assessed"
 
-        if res.status_code == 200:
-            parsed = json.loads(res.json()["candidates"][0]["content"]["parts"][0]["text"].strip())
-            syn_score = float(parsed.get("voice_synthesis_score", 0.0))
-            anoms = parsed.get("identified_audio_anomalies", []) + parsed.get("cloning_indicators_detected", [])
-            summary = parsed.get("acoustic_environment_summary", "Acoustic assessment completed.")
-            impact = int(parsed.get("score_impact", 0))
-            return syn_score, anoms, summary, impact
-
-    except Exception:
-        pass
-
-    return 0.0, [], "Audio acoustic characteristics evaluated via local signal filters.", 0
+    return 0.0, [], "Synthetic-speech model was not configured.", 0, "not_assessed"
 
 async def analyze_audio_forensics(filepath: str, original_filename: str) -> Tuple[AudioDiagnostics, AIVisualResult, List[EvidenceItem]]:
     evidence_items: List[EvidenceItem] = []
@@ -205,7 +191,7 @@ async def analyze_audio_forensics(filepath: str, original_filename: str) -> Tupl
     speech_ratio, unnatural_pause, spectral_cutoff, wave_obs = analyze_audio_waveform(filepath)
 
     # 3. Gemini Multimodal Acoustic Analysis
-    synth_score, ai_anomalies, scene_desc, ai_impact = await analyze_audio_with_gemini(filepath, meta)
+    synth_score, ai_anomalies, scene_desc, ai_impact, score_status = await analyze_audio_with_gemini(filepath, meta)
 
     all_obs = wave_obs + ([f"Gemini acoustic reasoning: {scene_desc}"] if scene_desc else [])
 
@@ -253,19 +239,32 @@ async def analyze_audio_forensics(filepath: str, original_filename: str) -> Tupl
             why_flagged="Multimodal acoustic reasoning identified unnatural phoneme transitions, lack of room reverberation, or metallic vocoder timbre.",
             limitations="Aggressive noise reduction or digital noise gates can introduce robotic vocal artifacts on authentic human recordings.",
             evidence_source=f"Gemini Multimodal Acoustic Analysis ({settings.GEMINI_MODEL})",
-            score_impact=max(ai_impact, 22)
+            score_impact=min(max(ai_impact, 0), 30)
+        ))
+    elif score_status != "model_reported":
+        evidence_items.append(EvidenceItem(
+            id="AUD-UNAVAILABLE-01",
+            title="Synthetic-Speech Model Not Run",
+            layer="Audio Acoustic Forensics",
+            severity="informational",
+            confidence="Preliminary Observation",
+            explanation=scene_desc or "No synthetic-speech score was produced.",
+            why_flagged="A score of 0 means the classifier was not available. It does not mean the recording is authentic.",
+            limitations="Signal checks for silence and spectral rolloff have many innocent causes and are not a pretrained deepfake-audio detector.",
+            evidence_source="TruthLens audio pipeline",
+            score_impact=0
         ))
     else:
         evidence_items.append(EvidenceItem(
             id="AUD-PASS-01",
-            title="Acoustic Harmonic Naturalness Verified",
+            title="Model Did Not Report Synthetic-Speech Indicators",
             layer="Audio Acoustic Forensics",
             severity="informational",
-            confidence="High Confidence",
-            explanation="Voice recording displays natural vocal inflection, pitch micro-tremors, and organic room acoustics.",
-            why_flagged="No prominent synthetic vocoder or voice clone artifacts were detected.",
-            limitations="High-end voice cloning models with custom acoustic cloning can closely emulate organic voice timbres.",
-            evidence_source="Signal Energy Distribution & Gemini Voice Reasoning",
+            confidence="Moderate Confidence",
+            explanation=f"The uncalibrated model score was {synth_score:.1f}/100 and no anomaly list was returned.",
+            why_flagged="This is the model's report. It is not a calibrated probability that the voice is genuine.",
+            limitations="Voice-cloning systems can pass a general audio model. Studio processing also changes timbre.",
+            evidence_source=f"Gemini audio review ({settings.GEMINI_MODEL})",
             score_impact=0
         ))
 
@@ -278,6 +277,7 @@ async def analyze_audio_forensics(filepath: str, original_filename: str) -> Tupl
         speech_silence_ratio=speech_ratio,
         unnatural_pause_detected=unnatural_pause,
         synthetic_prosody_score=round(synth_score, 1),
+        synthetic_score_status=score_status,
         spectral_cutoff_observed=spectral_cutoff,
         observations=all_obs,
         suspicious_indicators=suspicious_indicators

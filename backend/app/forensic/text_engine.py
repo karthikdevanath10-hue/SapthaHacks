@@ -1,10 +1,9 @@
 import re
-import json
-import httpx
 import numpy as np
-from typing import Tuple, List, Dict, Any, Optional
+from typing import Tuple, List, Dict, Any
 from app.models.schemas import TextDiagnostics, AIVisualResult, EvidenceItem
 from app.core.config import settings
+from app.forensic.gemini_client import gemini_json
 
 def analyze_text_stylometry(text: str) -> Tuple[Dict[str, Any], List[str]]:
     observations = []
@@ -51,11 +50,11 @@ async def analyze_text_with_gemini(text: str, meta: Dict[str, Any]) -> Tuple[str
     api_key = settings.GEMINI_API_KEY
     if not api_key:
         return (
-            "Moderate Likelihood",
-            meta["markers"],
+            "Not assessed",
             [],
-            "Text structure analyzed via local stylometric and entropy filters.",
-            0
+            [],
+            "AI-generated-text classifier was not run because GEMINI_API_KEY is unset. Stylometry below is a statistical description, not a synthetic-text probability.",
+            0,
         )
 
     prompt = f"""
@@ -79,30 +78,22 @@ Return STRICTLY valid JSON:
 }}
 """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={api_key}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.2, "response_mime_type": "application/json"}
-    }
+    parsed, error, _model = await gemini_json([{"text": prompt}])
+    if parsed:
+        ai_lik = parsed.get("ai_generation_likelihood", "Not assessed")
+        markers = parsed.get("stylometric_markers", []) or []
+        flags = parsed.get("factuality_flags", []) or []
+        summary = parsed.get("content_summary", "Text narrative evaluated by the language model.")
+        impact = int(parsed.get("score_impact", 0) or 0)
+        return ai_lik, markers, flags, summary, impact
 
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            res = await client.post(url, json=payload)
-            if res.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
-                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
-                res = await client.post(fallback_url, json=payload)
-        if res.status_code == 200:
-            parsed = json.loads(res.json()["candidates"][0]["content"]["parts"][0]["text"].strip())
-            ai_lik = parsed.get("ai_generation_likelihood", "Moderate Likelihood")
-            markers = parsed.get("stylometric_markers", [])
-            flags = parsed.get("factuality_flags", [])
-            summary = parsed.get("content_summary", "Text narrative evaluated.")
-            impact = int(parsed.get("score_impact", 0))
-            return ai_lik, markers, flags, summary, impact
-    except Exception:
-        pass
-
-    return "Low Likelihood", meta["markers"], [], "Evaluated via local stylometric filters.", 0
+    return (
+        "Not assessed",
+        [],
+        [],
+        f"AI-generated-text classifier did not return a usable result ({error}). No likelihood was assigned.",
+        0,
+    )
 
 async def analyze_text_forensics(text_content: str, filename: str = "submitted_text.txt") -> Tuple[TextDiagnostics, AIVisualResult, List[EvidenceItem]]:
     evidence_items: List[EvidenceItem] = []
@@ -132,7 +123,7 @@ async def analyze_text_forensics(text_content: str, filename: str = "submitted_t
             score_impact=14
         ))
 
-    if ai_lik == "High Synthetic Probability" or len(markers) >= 3:
+    if ai_lik == "High Synthetic Probability":
         suspicious_indicators.append(f"AI text generation signatures identified: {ai_lik}")
         for m in markers[:3]:
             suspicious_indicators.append(f"Stylometric token marker: '{m}'")
@@ -166,18 +157,32 @@ async def analyze_text_forensics(text_content: str, filename: str = "submitted_t
         ))
 
     if not evidence_items:
-        evidence_items.append(EvidenceItem(
-            id="TXT-PASS-01",
-            title="Organic Prose & Lexical Diversity Verified",
-            layer="Text Stylometry",
-            severity="informational",
-            confidence="High Confidence",
-            explanation=f"Text exhibits organic sentence variation (Burstiness: {meta['burstiness']}) and balanced lexical diversity (TTR: {meta['ttr']}).",
-            why_flagged="No overt synthetic generation markers or formulaic phrasing loops were detected.",
-            limitations="Advanced human-in-the-loop editing can disguise synthetic text origin.",
-            evidence_source="Statistical Stylometry & Gemini Linguistic Analysis",
-            score_impact=0
-        ))
+        if ai_lik == "Not assessed":
+            evidence_items.append(EvidenceItem(
+                id="TXT-UNAVAILABLE-01",
+                title="AI-Text Classifier Not Run",
+                layer="Text Stylometry",
+                severity="informational",
+                confidence="Preliminary Observation",
+                explanation=summary or "No synthetic-text classifier result is available.",
+                why_flagged="A likelihood label was not produced. Statistical stylometry was recorded without converting it into a fake-or-real verdict.",
+                limitations="Burstiness and type-token ratio describe writing style. They are not a validated detector of AI-generated text.",
+                evidence_source="TruthLens text pipeline",
+                score_impact=0
+            ))
+        else:
+            evidence_items.append(EvidenceItem(
+                id="TXT-PASS-01",
+                title="No High-Likelihood Synthetic-Text Label Returned",
+                layer="Text Stylometry",
+                severity="informational",
+                confidence="Moderate Confidence",
+                explanation=f"The classifier label was '{ai_lik}'. Sentence burstiness is {meta['burstiness']} and type-token ratio is {meta['ttr']}.",
+                why_flagged="The model did not return a high synthetic-text label. That is not proof the text was written by a person.",
+                limitations="People edit model output, and models miss human-edited synthetic text.",
+                evidence_source=f"Gemini linguistic review ({settings.GEMINI_MODEL})",
+                score_impact=0
+            ))
 
     text_diag = TextDiagnostics(
         word_count=meta["word_count"],

@@ -1,19 +1,26 @@
+import logging
 import os
+import time
 import uuid
-import shutil
 from datetime import datetime, timezone
 from typing import Optional, List
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.core.config import settings
+from app.core.security import (
+    enforce_rate_limit,
+    is_uuid,
+    safe_original_name,
+    storage_filename,
+    validate_file_contents,
+)
 from app.models.schemas import (
-    FullAnalysisResponse, MetadataResult, TechnicalResult,
-    AIVisualResult, CaptionComparisonResult, EvidenceItem,
+    FullAnalysisResponse, AnalyzerRun, EvidenceItem,
     VideoDiagnostics, AudioDiagnostics, TextDiagnostics,
-    QualityGateResult
+    QualityGateResult,
 )
 from app.forensic.quality_gate import (
     assess_image_quality, assess_audio_quality,
@@ -31,7 +38,15 @@ from app.forensic.cross_verification import (
 )
 from app.forensic.scorecard_engine import synthesize_evidence_scorecard
 from app.forensic.report_engine import generate_pdf_report
+from app.forensic.explanation_engine import explain_findings
+from app.forensic.correlation_engine import correlate_evidence
 from app.services.supabase_service import supabase_service
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger("truthlens.api")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -48,9 +63,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static folders for media and generated reports
-app.mount("/static/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
-app.mount("/static/reports", StaticFiles(directory=settings.REPORTS_DIR), name="reports")
+@app.exception_handler(Exception)
+async def unhandled_exception(_request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    logger.exception("Unhandled API error")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "The analysis request failed. No result was fabricated."},
+    )
+
 
 @app.get("/api/health")
 async def health_check():
@@ -61,6 +83,8 @@ async def health_check():
         "modalities": ["image", "video", "audio", "text"],
         "supabase_connected": supabase_service.is_connected(),
         "gemini_configured": bool(settings.GEMINI_API_KEY),
+        "gemini_model": settings.GEMINI_MODEL,
+        "models_loaded_at_startup": [],
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
@@ -78,8 +102,27 @@ def detect_modality(filename: str, override: Optional[str] = None) -> str:
         return "text"
     return "image"
 
+def _run(name: str, model: str, version: str, status: str, findings: int, score_type: str,
+         score_value, note: str, limitations: List[str], started: float, errors: List[str], evidence_id: str) -> AnalyzerRun:
+    return AnalyzerRun(
+        evidence_id=evidence_id,
+        analyzer_name=name,
+        model_name=model,
+        model_version=version,
+        status=status,
+        findings_count=findings,
+        score_type=score_type,
+        score_value=score_value,
+        confidence_note=note,
+        limitations=limitations,
+        duration_ms=int((time.perf_counter() - started) * 1000),
+        errors=errors,
+    )
+
+
 @app.post("/api/analyze", response_model=FullAnalysisResponse)
 async def analyze_multimodal_media(
+    request: Request,
     file: Optional[UploadFile] = File(None),
     text_content: Optional[str] = Form(None),
     caption: Optional[str] = Form(None),
@@ -87,8 +130,15 @@ async def analyze_multimodal_media(
     user_id: Optional[str] = Form(None),
     modality: Optional[str] = Form(None)
 ):
+    enforce_rate_limit(request, settings.RATE_LIMIT_ANALYZE, settings.RATE_LIMIT_WINDOW_SECONDS)
     investigation_id = str(uuid.uuid4())
+    trusted_user = user_id if is_uuid(user_id) else None
     all_evidence: List[EvidenceItem] = []
+    analyzer_runs: List[AnalyzerRun] = []
+    processing_notes: List[str] = [
+        "Original bytes are stored under a random name and are not overwritten by later processing.",
+        "Indicator scores are heuristic weights. They are not a probability that the evidence is fake.",
+    ]
 
     video_diag: Optional[VideoDiagnostics] = None
     audio_diag: Optional[AudioDiagnostics] = None
@@ -99,11 +149,11 @@ async def analyze_multimodal_media(
     if text_content and (not file or file.filename == ""):
         # Direct text input modality
         modality = "text"
-        filename = f"text_statement_{investigation_id[:8]}.txt"
-        filepath = os.path.join(settings.UPLOAD_DIR, filename)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(text_content)
-    elif file:
+        filename = safe_original_name("statement.txt")
+        filepath = os.path.join(settings.UPLOAD_DIR, storage_filename(".txt"))
+        with open(filepath, "w", encoding="utf-8") as handle:
+            handle.write(text_content)
+    elif file and file.filename:
         ext = os.path.splitext(file.filename)[1].lower()
         if ext not in settings.ALLOWED_EXTENSIONS:
             raise HTTPException(
@@ -112,13 +162,16 @@ async def analyze_multimodal_media(
             )
 
         modality = detect_modality(file.filename, override=modality)
-        filename = f"{investigation_id[:8]}_{file.filename.replace(' ', '_')}"
-        filepath = os.path.join(settings.UPLOAD_DIR, filename)
+        filename = safe_original_name(file.filename)
+        filepath = os.path.join(settings.UPLOAD_DIR, storage_filename(ext))
 
         with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                buffer.write(chunk)
 
-        # File size check
         file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
         if file_size_mb > settings.MAX_FILE_SIZE_MB:
             os.remove(filepath)
@@ -126,6 +179,10 @@ async def analyze_multimodal_media(
                 status_code=400,
                 detail=f"File exceeds maximum size limit of {settings.MAX_FILE_SIZE_MB}MB"
             )
+        content_error = validate_file_contents(filepath, ext)
+        if content_error:
+            os.remove(filepath)
+            raise HTTPException(status_code=400, detail=content_error)
     else:
         raise HTTPException(status_code=400, detail="Please upload a media file or provide text content.")
 

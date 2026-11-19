@@ -1,10 +1,9 @@
 import os
-import json
 import base64
-import httpx
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List
 from app.models.schemas import AIVisualResult, EvidenceItem
 from app.core.config import settings
+from app.forensic.gemini_client import gemini_json
 
 FORENSIC_VISION_SYSTEM_PROMPT = """
 You are TruthLens Senior Forensic Vision Analyst.
@@ -51,47 +50,14 @@ async def analyze_with_gemini(filepath: str) -> Tuple[AIVisualResult, List[Evide
         elif ext in [".webp"]:
             mime_type = "image/webp"
 
-        # Request to Gemini 3.6 Flash with automatic resilience fallback
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={api_key}"
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": FORENSIC_VISION_SYSTEM_PROMPT},
-                        {
-                            "inline_data": {
-                                "mime_type": mime_type,
-                                "data": b64_image
-                            }
-                        },
-                        {"text": "Perform forensic visual anomaly and physical consistency analysis on this image. Return valid JSON only."}
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.2,
-                "response_mime_type": "application/json"
-            }
-        }
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
-            if response.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
-                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
-                response = await client.post(fallback_url, json=payload)
-            
-        if response.status_code != 200:
-            return _generate_fallback_ai_analysis(filepath, is_live=False, error_msg=f"Gemini API returned HTTP {response.status_code}")
-
-        res_json = response.json()
-        candidates = res_json.get("candidates", [])
-        if not candidates:
-            return _generate_fallback_ai_analysis(filepath, is_live=False, error_msg="No response candidates received from Gemini")
-
-        raw_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
-        
-        # Parse JSON
-        parsed = json.loads(raw_text.strip("```json").strip("```").strip())
+        parsed, error, model_used = await gemini_json([
+            {"text": FORENSIC_VISION_SYSTEM_PROMPT},
+            {"inline_data": {"mime_type": mime_type, "data": b64_image}},
+            {"text": "Perform forensic visual anomaly and physical consistency analysis on this image. Return valid JSON only. Do not invent regions, scores, or artifacts you cannot describe from the image."},
+        ])
+        if error or parsed is None:
+            return _generate_fallback_ai_analysis(filepath, is_live=False, error_msg=error or "empty model output")
+        settings_model = model_used or settings.GEMINI_MODEL
         
         scene_desc = parsed.get("scene_description", "Visual scene examined.")
         entities = parsed.get("detected_entities", [])
@@ -114,8 +80,8 @@ async def analyze_with_gemini(filepath: str) -> Tuple[AIVisualResult, List[Evide
                 explanation="; ".join(anomalies + artifacts) if (anomalies or artifacts) else "Visual anomalies flagged.",
                 why_flagged="Gemini Multimodal inspection observed unnatural geometry, optical light-source discordance, or synthesis residue.",
                 limitations="Vision models can misinterpret artistic stylized photography, macro lens blur, or unusual lighting as synthetic artifacts.",
-                evidence_source=f"Google Gemini Multimodal Vision ({settings.GEMINI_MODEL})",
-                score_impact=min(max(score_impact, 10), 25)
+                evidence_source=f"Google Gemini Multimodal Vision ({settings_model})",
+                score_impact=min(max(score_impact, 0), 25)
             ))
         else:
             evidence_items.append(EvidenceItem(
@@ -127,7 +93,7 @@ async def analyze_with_gemini(filepath: str) -> Tuple[AIVisualResult, List[Evide
                 explanation=f"Visual lighting ({lighting[:90]}...) and anatomical geometry appear physically consistent with natural photography.",
                 why_flagged="No overt visual artifacts or geometric mutations were identified by the multimodal inspector.",
                 limitations="State-of-the-art diffusion and GAN models can generate visually flawless subjects that pass macroscopic human and AI inspection.",
-                evidence_source=f"Google Gemini Multimodal Vision ({settings.GEMINI_MODEL})",
+                evidence_source=f"Google Gemini Multimodal Vision ({settings_model})",
                 score_impact=0
             ))
 
@@ -155,13 +121,13 @@ def _generate_fallback_ai_analysis(filepath: str, is_live: bool = False, error_m
     evidence_items: List[EvidenceItem] = []
     status_note = f" (Offline Mode: {error_msg})" if error_msg else " (Live Gemini API Key pending in .env)"
 
-    scene_desc = f"Image examined under local forensic heuristics{status_note}. High-level structural assessment completed."
-    entities = ["Foreground Subject", "Environmental Background"]
+    scene_desc = f"Vision-model analysis was not completed{status_note}. No scene description was inferred."
+    entities = []
     anomalies = []
     artifacts = []
-    lighting = "Illumination appears coherent across dominant foreground elements."
-    structural = "Geometric perspective lines and subject outlines show continuous boundary gradients."
-    confidence = "Confidence calibrated for local heuristic verification. Configure GEMINI_API_KEY for deep multimodal semantic understanding."
+    lighting = "Not assessed. No lighting conclusion was produced."
+    structural = "Not assessed. No anatomical or structural conclusion was produced."
+    confidence = "No vision-model confidence is available for this run."
 
     evidence_items.append(EvidenceItem(
         id="AI-FALLBACK-01",

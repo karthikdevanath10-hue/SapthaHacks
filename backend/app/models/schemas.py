@@ -73,7 +73,8 @@ class AudioDiagnostics(BaseModel):
     format: str
     speech_silence_ratio: float
     unnatural_pause_detected: bool
-    synthetic_prosody_score: float  # 0.0 to 100.0
+    synthetic_prosody_score: float  # Uncalibrated model report, or 0 when not assessed
+    synthetic_score_status: str = "not_assessed"  # "model_reported" | "not_assessed"
     spectral_cutoff_observed: bool
     observations: List[str] = []
     suspicious_indicators: List[str] = []
@@ -107,6 +108,44 @@ class CaptionComparisonResult(BaseModel):
     discrepancy_details: List[str] = []
     semantic_match_score: float = 1.0  # 0.0 to 1.0
     explanation: str
+
+class FindingExplanation(BaseModel):
+    evidence_id: str
+    observed: str
+    supporting_evidence: str
+    produced_by: str
+    location: str
+    uncertainty: str
+    alternatives: str
+    next_step: str
+    severity: str = "informational"
+    score_impact: int = 0
+
+
+class CorrelationRecord(BaseModel):
+    id: str
+    comparison_type: str
+    relation: str  # matching | contradictory | inconclusive | missing | unsupported
+    source: str
+    rationale: str
+    evidence_refs: List[str] = []
+    limitations: str = ""
+
+
+class AnalyzerRun(BaseModel):
+    evidence_id: str
+    analyzer_name: str
+    model_name: str
+    model_version: str
+    status: str
+    findings_count: int = 0
+    score_type: str
+    score_value: Optional[float] = None
+    confidence_note: str
+    limitations: List[str] = []
+    duration_ms: int = 0
+    errors: List[str] = []
+
 
 class InvestigationRecord(BaseModel):
     id: str
@@ -144,3 +183,8 @@ class FullAnalysisResponse(BaseModel):
     recommendations: List[str]
     report_download_url: Optional[str] = None
     created_at: str
+    duplicate_warning: Optional[str] = None
+    explanations: List[FindingExplanation] = []
+    correlations: List[CorrelationRecord] = []
+    analyzer_runs: List[AnalyzerRun] = []
+    processing_notes: List[str] = []

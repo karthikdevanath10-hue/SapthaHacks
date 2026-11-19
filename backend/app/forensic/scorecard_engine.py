@@ -45,7 +45,7 @@ def synthesize_evidence_scorecard(
             "While indicators suggest editing, resaving, or descriptive discrepancy, they do not conclusively "
             "determine whether the image is synthetic or authentic."
         )
-    elif metadata.dimensions.get("width", 0) == 0:
+    elif metadata.color_mode not in {"Audio Track", "UTF-8 Text Stream"} and metadata.dimensions.get("width", 0) == 0:
         assessment = "Insufficient evidence for assessment"
         summary = "File structure was corrupted or truncated, preventing comprehensive multi-layer extraction."
     else:
