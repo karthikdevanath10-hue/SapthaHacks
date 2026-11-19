@@ -46,6 +46,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isDialCollapsed, setIsDialCollapsed] = useState<boolean>(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -270,6 +271,7 @@ interface VaultFileItem {
 
   const handleOptionChange = (id: ExplorerOptionId) => {
     setActiveOption(id);
+    setIsMobileDrawerOpen(false);
     setSelectedFile(null);
     setPreviewUrl(null);
     setDirectText('');
@@ -907,16 +909,27 @@ interface VaultFileItem {
       <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute top-1/2 left-1/3 w-[450px] h-[450px] bg-violet-500/10 rounded-full blur-[120px] pointer-events-none" />
 
+      {/* Mobile Backdrop Overlay when capabilities drawer is open */}
+      {isMobileDrawerOpen && (
+        <div
+          onClick={() => setIsMobileDrawerOpen(false)}
+          className="fixed inset-0 bg-black/80 backdrop-blur-md z-40 lg:hidden animate-in fade-in duration-200"
+          aria-hidden="true"
+        />
+      )}
+
       {/* ======================================================== */}
       {/* LEFT COLUMN: FULL HEIGHT SEMI-CIRCULAR GLOWING ARC DIAL */}
       {/* FLUSH TO TOP END, LOWER END, AND LEFT SCREEN EDGE */}
-      {/* COLLAPSIBLE VIA GLOWING APEX DOT */}
+      {/* ON MOBILE: OFF-CANVAS SLIDE-OVER DRAWER */}
+      {/* ON DESKTOP: INLINE COLLAPSIBLE VIA GLOWING APEX DOT */}
       {/* ======================================================== */}
       <div
-        className={`w-[320px] sm:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col justify-between relative z-30 select-none pl-6 sm:pl-8 pr-6 sm:pr-8 pt-5 sm:pt-6 pb-6 sm:pb-8 rounded-l-none rounded-t-none rounded-b-none rounded-r-[220px] sm:rounded-r-[280px] lg:rounded-r-[320px] bg-slate-950/90 border-y-0 border-l-0 border-r-2 border-r-purple-400/90 shadow-[0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl transition-[margin] duration-500 ease-in-out ${isDialCollapsed
-            ? '-ml-[302px] sm:-ml-[362px] xl:-ml-[402px]'
-            : 'ml-0'
-          }`}
+        className={`fixed inset-y-0 left-0 z-50 lg:relative lg:inset-auto lg:z-30 w-[300px] sm:w-[360px] lg:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col justify-between select-none pl-5 sm:pl-8 pr-5 sm:pr-8 pt-4 sm:pt-6 pb-5 sm:pb-8 rounded-l-none rounded-t-none rounded-b-none rounded-r-[180px] sm:rounded-r-[260px] lg:rounded-r-[320px] bg-slate-950/95 lg:bg-slate-950/90 border-y-0 border-l-0 border-r-2 border-r-purple-400/90 shadow-[0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl transition-all duration-500 ease-in-out ${
+          isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } ${
+          isDialCollapsed ? 'lg:-ml-[302px] sm:lg:-ml-[362px] xl:lg:-ml-[402px]' : 'lg:ml-0'
+        }`}
       >
 
         {/* Interactive Glowing Neon Apex Dot - Collapse & Expand Trigger */}
@@ -924,7 +937,11 @@ interface VaultFileItem {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            setIsDialCollapsed(prev => !prev);
+            if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+              setIsMobileDrawerOpen(false);
+            } else {
+              setIsDialCollapsed(prev => !prev);
+            }
           }}
           title={isDialCollapsed ? "Tap to open capability dial" : "Tap to collapse dial"}
           aria-label={isDialCollapsed ? "Open Page Explorer dial" : "Collapse Page Explorer dial"}
@@ -938,27 +955,42 @@ interface VaultFileItem {
         </button>
 
         {/* 1. TOP BRAND LOGO (Flush to top end of screen) */}
-        <div 
-          onClick={onReturnToWelcome}
-          className={`flex items-center space-x-3.5 border-b border-purple-500/20 pb-4 flex-shrink-0 ${onReturnToWelcome ? 'cursor-pointer group' : ''}`}
-          title={onReturnToWelcome ? "Return to Welcome & Introduction Page" : undefined}
-        >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/40 ring-1 ring-purple-400/30 flex-shrink-0 group-hover:scale-105 transition">
-            <ShieldCheck className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between border-b border-purple-500/20 pb-4 flex-shrink-0">
+          <div 
+            onClick={() => {
+              setIsMobileDrawerOpen(false);
+              onReturnToWelcome?.();
+            }}
+            className={`flex items-center space-x-3.5 ${onReturnToWelcome ? 'cursor-pointer group' : ''}`}
+            title={onReturnToWelcome ? "Return to Welcome & Introduction Page" : undefined}
+          >
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/40 ring-1 ring-purple-400/30 flex-shrink-0 group-hover:scale-105 transition">
+              <ShieldCheck className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <span className="font-extrabold text-xl tracking-tight text-white drop-shadow-[0_0_12px_rgba(168,85,247,0.5)]">
+                Truth<span className="text-purple-400">Lens</span>
+              </span>
+              <p className="text-[11px] text-purple-300/70 flex items-center space-x-1">
+                <span>Multimodal AI Forensics</span>
+                {onReturnToWelcome && (
+                  <span className="text-purple-400 text-[9px] opacity-0 group-hover:opacity-100 transition">
+                    • Intro
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
-          <div>
-            <span className="font-extrabold text-xl tracking-tight text-white drop-shadow-[0_0_12px_rgba(168,85,247,0.5)]">
-              Truth<span className="text-purple-400">Lens</span>
-            </span>
-            <p className="text-[11px] text-purple-300/70 flex items-center space-x-1">
-              <span>Multimodal AI Forensics</span>
-              {onReturnToWelcome && (
-                <span className="text-purple-400 text-[9px] opacity-0 group-hover:opacity-100 transition">
-                  • Intro
-                </span>
-              )}
-            </p>
-          </div>
+
+          {/* Close Drawer Button on Mobile */}
+          <button
+            type="button"
+            onClick={() => setIsMobileDrawerOpen(false)}
+            className="lg:hidden p-1.5 rounded-xl bg-purple-900/40 border border-purple-500/30 text-purple-300 hover:text-white transition"
+            title="Close Capabilities Menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* 2. MIDDLE CAPABILITY SELECTOR (Vertically Centered) */}
@@ -1044,26 +1076,38 @@ interface VaultFileItem {
       {/* ======================================================== */}
       {/* RIGHT COLUMN: SEARCH HEADER + EXPANDED WORKSPACE GLASS PANEL */}
       {/* ======================================================== */}
-      <div className={`flex-1 h-full min-h-0 flex flex-col p-4 sm:p-6 lg:p-7 pr-4 sm:pr-8 gap-3.5 overflow-hidden relative z-10 transition-all duration-500 ${isDialCollapsed ? 'pl-8 sm:pl-10' : 'pl-4 sm:pl-6'
-        }`}>
+      <div className={`w-full lg:flex-1 h-full min-h-0 flex flex-col p-2.5 sm:p-5 lg:p-7 pr-2.5 sm:pr-6 lg:pr-8 gap-2.5 sm:gap-3.5 overflow-hidden relative z-10 transition-all duration-500 ${
+        isDialCollapsed ? 'lg:pl-8 sm:lg:pl-10' : 'lg:pl-4 sm:lg:pl-6'
+      }`}>
 
         {/* Top Control Bar: Search Bar + Capabilities Trigger + User Profile Avatar */}
-        <div className="flex items-center justify-between flex-shrink-0 gap-3">
+        <div className="flex items-center justify-between flex-shrink-0 gap-2 sm:gap-3">
 
-          <div className="flex items-center space-x-2 flex-1 max-w-lg">
-            {/* Quick Toggle Button when dial is collapsed */}
+          <div className="flex items-center space-x-2 flex-1 max-w-lg min-w-0">
+            {/* Mobile Capability Drawer Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsMobileDrawerOpen(true)}
+              className="lg:hidden px-2.5 py-1.5 rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer shadow-md flex-shrink-0"
+              title="Open Capabilities Dial Menu"
+            >
+              <Layers className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-[11px] font-mono">Dial</span>
+            </button>
+
+            {/* Quick Toggle Button when dial is collapsed (Desktop only) */}
             {isDialCollapsed && (
               <button
                 type="button"
                 onClick={() => setIsDialCollapsed(false)}
-                className="px-3.5 py-1.5 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300 text-xs font-semibold flex items-center space-x-1 hover:text-white transition cursor-pointer shadow-md"
+                className="hidden lg:flex px-3.5 py-1.5 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300 text-xs font-semibold items-center space-x-1 hover:text-white transition cursor-pointer shadow-md flex-shrink-0"
               >
                 <span>← Capabilities</span>
               </button>
             )}
 
             {/* Search Input Container with Live Instant Dropdown */}
-            <div ref={searchContainerRef} className="relative flex-1">
+            <div ref={searchContainerRef} className="relative flex-1 min-w-0">
               <Search className="w-4 h-4 text-purple-400/60 absolute left-3.5 top-2.5 pointer-events-none" />
               <input
                 type="text"
@@ -1206,16 +1250,17 @@ interface VaultFileItem {
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
             {onReturnToWelcome && (
               <button
                 type="button"
                 onClick={onReturnToWelcome}
                 title="Return to Welcome & Introduction Overview"
-                className="px-3 py-1.5 rounded-full bg-purple-950/70 border border-purple-500/40 text-purple-300 hover:text-white hover:border-purple-300 text-xs font-semibold flex items-center space-x-1.5 transition shadow-xs cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 rounded-full bg-purple-950/70 border border-purple-500/40 text-purple-300 hover:text-white hover:border-purple-300 text-xs font-semibold flex items-center space-x-1.5 transition shadow-xs cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                <span className="hidden sm:inline">Welcome Intro</span>
+                <span className="hidden md:inline">Welcome Intro</span>
+                <span className="md:hidden text-[11px]">Intro</span>
               </button>
             )}
 
@@ -1223,14 +1268,14 @@ interface VaultFileItem {
               <button
                 onClick={onSignOut}
                 title="Sign Out"
-                className="w-9 h-9 rounded-full bg-purple-900/40 border border-purple-500/50 flex items-center justify-center text-purple-300 hover:text-white hover:border-purple-400 transition cursor-pointer shadow-md"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-purple-900/40 border border-purple-500/50 flex items-center justify-center text-purple-300 hover:text-white hover:border-purple-400 transition cursor-pointer shadow-md"
               >
                 <User className="w-4 h-4" />
               </button>
             ) : (
               <button
                 onClick={onOpenAuth}
-                className="px-4 py-2 rounded-full bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 text-white text-xs font-semibold shadow-md shadow-purple-600/30 transition flex items-center space-x-1.5 cursor-pointer"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 text-white text-xs font-semibold shadow-md shadow-purple-600/30 transition flex items-center space-x-1.5 cursor-pointer"
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Sign In</span>
@@ -1240,15 +1285,45 @@ interface VaultFileItem {
               type="button"
               onClick={() => setIsProfileModalOpen(true)}
               title="Lead Examiner Profile & Credentials"
-              className="w-10 h-10 rounded-full bg-purple-950/70 border border-purple-500/50 hover:border-purple-300 hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-purple-200 hover:text-white shadow-[0_0_20px_rgba(168,85,247,0.35)] ring-2 ring-purple-500/30 cursor-pointer"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-950/70 border border-purple-500/50 hover:border-purple-300 hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-purple-200 hover:text-white shadow-[0_0_20px_rgba(168,85,247,0.35)] ring-2 ring-purple-500/30 cursor-pointer"
             >
-              <User className="w-5 h-5 text-purple-200" />
+              <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-200" />
             </button>
           </div>
         </div>
 
+        {/* Mobile Horizontal Capability Pill Strip (1-tap modality switching) */}
+        <div className="flex lg:hidden items-center space-x-2 overflow-x-auto no-scrollbar py-1 flex-shrink-0 -mx-0.5 px-0.5">
+          {arcMenuItems.concat(secondaryMenuItems as any).map((item) => {
+            const ItemIcon = item.icon;
+            const isActive = activeOption === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleOptionChange(item.id)}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 border cursor-pointer ${
+                  isActive
+                    ? 'bg-purple-600 text-white border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]'
+                    : 'bg-slate-900/80 text-purple-300/80 border-purple-500/30 hover:border-purple-400 hover:text-white'
+                }`}
+              >
+                <ItemIcon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+                {item.badge !== undefined && (
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isActive ? 'bg-purple-800 text-white' : 'bg-purple-950 text-purple-300'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Right Glass Workspace Panel */}
-        <div className="flex-1 bg-slate-950/50 border border-purple-500/30 rounded-3xl shadow-[0_0_40px_rgba(147,51,234,0.18)] backdrop-blur-2xl p-5 lg:p-7 flex flex-col justify-between relative overflow-hidden min-h-0">
+        <div className="flex-1 bg-slate-950/50 border border-purple-500/30 rounded-2xl sm:rounded-3xl shadow-[0_0_40px_rgba(147,51,234,0.18)] backdrop-blur-2xl p-3.5 sm:p-5 lg:p-7 flex flex-col justify-between relative overflow-hidden min-h-0">
 
           {/* Subtle Ambient Scenic Background (Matching image) */}
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-slate-950/30 to-indigo-950/20 pointer-events-none" />
@@ -1297,8 +1372,8 @@ interface VaultFileItem {
                 <div className="space-y-6">
 
                   {/* Uploader Card */}
-                  <div className="p-6 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-4">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="p-4 sm:p-6 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div>
                         <h3 className="text-base font-bold text-white flex items-center space-x-2">
                           <ImageIcon className="w-5 h-5 text-purple-400" />
@@ -1317,10 +1392,10 @@ interface VaultFileItem {
                         onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
                       />
 
-                      <div className="flex items-center gap-2.5 flex-shrink-0 flex-wrap">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-shrink-0 w-full sm:w-auto">
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-purple-600/30 transition cursor-pointer"
+                          className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-purple-600/30 transition cursor-pointer"
                         >
                           <UploadCloud className="w-4 h-4" />
                           <span>Select Image File</span>
@@ -1333,7 +1408,7 @@ interface VaultFileItem {
                               startCamera();
                             }
                           }}
-                          className={`px-4 py-2.5 rounded-xl border font-semibold text-xs flex items-center space-x-2 transition cursor-pointer ${
+                          className={`px-4 py-2.5 rounded-xl border font-semibold text-xs flex items-center justify-center space-x-2 transition cursor-pointer ${
                             isCameraActive
                               ? 'border-rose-500/50 bg-rose-950/60 text-rose-300 hover:bg-rose-900 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
                               : 'border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 hover:text-white shadow-[0_0_15px_rgba(6,182,212,0.25)]'
@@ -1492,8 +1567,8 @@ interface VaultFileItem {
               {/* =================================================== */}
               {activeOption === 'video' && (
                 <div className="space-y-6">
-                  <div className="p-6 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-4">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="p-4 sm:p-6 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div>
                         <h3 className="text-base font-bold text-white flex items-center space-x-2">
                           <Video className="w-5 h-5 text-purple-400" />
@@ -1512,10 +1587,10 @@ interface VaultFileItem {
                         onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
                       />
 
-                      <div className="flex items-center gap-2.5 flex-shrink-0 flex-wrap">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-shrink-0 w-full sm:w-auto">
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-purple-600/30 transition cursor-pointer"
+                          className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-purple-600/30 transition cursor-pointer"
                         >
                           <UploadCloud className="w-4 h-4" />
                           <span>Select Video File</span>
@@ -1528,7 +1603,7 @@ interface VaultFileItem {
                               startVideoCamera();
                             }
                           }}
-                          className={`px-4 py-2.5 rounded-xl border font-semibold text-xs flex items-center space-x-2 transition cursor-pointer ${
+                          className={`px-4 py-2.5 rounded-xl border font-semibold text-xs flex items-center justify-center space-x-2 transition cursor-pointer ${
                             isVideoRecordingActive
                               ? 'border-rose-500/50 bg-rose-950/60 text-rose-300 hover:bg-rose-900 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
                               : 'border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 hover:text-white shadow-[0_0_15px_rgba(6,182,212,0.25)]'
@@ -1819,8 +1894,8 @@ interface VaultFileItem {
                     </div>
                   </div>
 
-                  <div className="border border-purple-500/30 rounded-2xl overflow-hidden bg-slate-950/60 shadow-lg">
-                    <table className="w-full text-left text-xs">
+                  <div className="border border-purple-500/30 rounded-2xl overflow-x-auto bg-slate-950/60 shadow-lg custom-scrollbar">
+                    <table className="w-full text-left text-xs min-w-[560px]">
                       <thead className="bg-purple-950/40 border-b border-purple-500/20 text-purple-300 uppercase font-mono text-[10px] tracking-wider">
                         <tr>
                           <th className="py-3 px-4">Case Media</th>
