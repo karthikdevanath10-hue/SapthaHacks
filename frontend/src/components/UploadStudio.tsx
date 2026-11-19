@@ -286,20 +286,20 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({
             </div>
 
             {/* Corporate Modality Switcher & Left Dashboard Trigger */}
-            <div className="flex items-center flex-wrap gap-2.5">
+            <div className="flex items-center flex-wrap gap-2">
               {onOpenDashboardDrawer && (
                 <button
                   type="button"
                   onClick={onOpenDashboardDrawer}
-                  className="px-3.5 py-1.5 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer shadow-xs"
-                  title="Open Left Side Sliding Dashboard"
+                  className="px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50/90 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer shadow-xs whitespace-nowrap"
+                  title="Open Watch Apps Split Dashboard"
                 >
                   <PanelLeftOpen className="w-3.5 h-3.5 text-blue-600" />
                   <span>Case Dashboard</span>
                 </button>
               )}
 
-              <div className="flex items-center flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs">
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs overflow-x-auto">
                 {[
                   { id: 'image', label: 'Image Forensics', icon: <ImageIcon className="w-3.5 h-3.5" /> },
                   { id: 'video', label: 'Video Deepfake', icon: <Video className="w-3.5 h-3.5" /> },
@@ -309,7 +309,7 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({
                   <button
                     key={tab.id}
                     onClick={() => handleModalityChange(tab.id as MediaModality)}
-                    className={`px-3 py-1.5 rounded-lg font-medium flex items-center space-x-2 transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg font-medium flex items-center space-x-1.5 transition cursor-pointer whitespace-nowrap ${
                       selectedModality === tab.id
                         ? 'bg-blue-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'

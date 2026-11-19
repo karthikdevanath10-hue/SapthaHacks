@@ -402,3 +402,44 @@ async def download_report(investigation_id: str):
         media_type="application/pdf",
         filename=report_filename
     )
+
+@app.get("/api/storage/stats")
+async def get_storage_stats():
+    def get_dir_info(dir_path: str):
+        total_size = 0
+        files = []
+        if os.path.exists(dir_path):
+            for entry in os.scandir(dir_path):
+                if entry.is_file() and not entry.name.startswith("."):
+                    stat = entry.stat()
+                    total_size += stat.st_size
+                    files.append({
+                        "filename": entry.name,
+                        "size_bytes": stat.st_size,
+                        "created_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()
+                    })
+        return total_size, files
+
+    uploads_size, upload_files = get_dir_info(settings.UPLOAD_DIR)
+    reports_size, report_files = get_dir_info(settings.REPORTS_DIR)
+
+    all_files = []
+    for f in upload_files:
+        ext = f["filename"].split(".")[-1].lower() if "." in f["filename"] else ""
+        cat = "video" if ext in ["mp4", "mov", "webm", "avi"] else ("audio" if ext in ["mp3", "wav", "m4a", "ogg"] else ("text" if ext in ["txt"] else "image"))
+        all_files.append({**f, "category": cat, "type": "upload"})
+    for f in report_files:
+        all_files.append({**f, "category": "pdf_report", "type": "report"})
+
+    all_files.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+    return {
+        "total_size_bytes": uploads_size + reports_size,
+        "total_files_count": len(all_files),
+        "uploads_size_bytes": uploads_size,
+        "uploads_count": len(upload_files),
+        "reports_size_bytes": reports_size,
+        "reports_count": len(report_files),
+        "supabase_connected": supabase_service.is_connected(),
+        "files": all_files[:50]
+    }

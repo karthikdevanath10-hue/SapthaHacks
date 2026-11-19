@@ -72,5 +72,30 @@ export const apiService = {
 
   getReportDownloadUrl(investigationId: string): string {
     return `${API_BASE_URL}/reports/${investigationId}/download`;
+  },
+
+  async searchMcpWebPresence(query: string, modality: string = 'image'): Promise<any> {
+    const res = await apiClient.post('/mcp/search', { query, modality });
+    return res.data;
+  },
+
+  async getStorageStats(): Promise<{
+    total_size_bytes: number;
+    total_files_count: number;
+    uploads_size_bytes: number;
+    uploads_count: number;
+    reports_size_bytes: number;
+    reports_count: number;
+    supabase_connected: boolean;
+    files: Array<{
+      filename: string;
+      size_bytes: number;
+      created_at: string;
+      category: string;
+      type: string;
+    }>;
+  }> {
+    const res = await apiClient.get('/storage/stats');
+    return res.data;
   }
 };
