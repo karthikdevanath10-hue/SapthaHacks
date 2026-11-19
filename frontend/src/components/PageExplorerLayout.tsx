@@ -303,16 +303,11 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-extrabold text-xl tracking-tight text-white drop-shadow-[0_0_12px_rgba(168,85,247,0.5)]">
-                Truth<span className="text-purple-400">Lens</span>
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-900/60 text-purple-300 border border-purple-500/40 shadow-xs">
-                Page Explorer
-              </span>
-            </div>
+            <span className="font-extrabold text-xl tracking-tight text-white drop-shadow-[0_0_12px_rgba(168,85,247,0.5)]">
+              Truth<span className="text-purple-400">Lens</span>
+            </span>
             <p className="text-[11px] text-purple-300/70">
-              Multimodal AI Forensics & Provenance
+              Multimodal AI Forensics
             </p>
           </div>
         </div>
