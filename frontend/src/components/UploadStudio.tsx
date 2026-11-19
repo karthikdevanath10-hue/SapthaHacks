@@ -207,7 +207,7 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
     const steps = MODALITY_STEPS[selectedModality];
     const timer = setInterval(() => {
       setCurrentStepIndex(prev => (prev < steps.length - 1 ? prev + 1 : prev));
-    }, 1100);
+    }, 350);
 
     try {
       const result = await apiService.analyzeMedia({
@@ -246,33 +246,34 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
       {!analysisResult ? (
         <div className="space-y-6">
           
-          {/* Modality Selector Header */}
-          <div className="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Corporate Modality Header */}
+          <div className="glass-panel p-4 rounded-2xl border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-white flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-cyan-400" />
-                <span>Multimodal Forensic Ingestion Studio</span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                Select target media modality to activate specialized forensic pipelines
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="w-5 h-5 text-blue-500" />
+                <h2 className="text-lg font-bold text-white tracking-tight">Forensic Investigation Studio</h2>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/60">ISO 27037 Standard</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Multi-layer inspection across mathematical signal, cryptographic provenance, and AI reasoning pipelines
               </p>
             </div>
 
-            {/* Modality Switcher Buttons */}
-            <div className="flex items-center flex-wrap gap-2 bg-cyber-950/80 p-1.5 rounded-xl border border-slate-800 text-xs">
+            {/* Corporate Modality Switcher */}
+            <div className="flex items-center flex-wrap gap-1.5 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 text-xs">
               {[
-                { id: 'image', label: 'Image Forensics', icon: <ImageIcon className="w-4 h-4" /> },
-                { id: 'video', label: 'Video Deepfake', icon: <Video className="w-4 h-4" /> },
-                { id: 'audio', label: 'Voice / Audio', icon: <Mic className="w-4 h-4" /> },
-                { id: 'text', label: 'Text & Narrative', icon: <FileText className="w-4 h-4" /> },
+                { id: 'image', label: 'Image Forensics', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                { id: 'video', label: 'Video Deepfake', icon: <Video className="w-3.5 h-3.5" /> },
+                { id: 'audio', label: 'Voice / Audio', icon: <Mic className="w-3.5 h-3.5" /> },
+                { id: 'text', label: 'Text & Narrative', icon: <FileText className="w-3.5 h-3.5" /> },
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => handleModalityChange(tab.id as MediaModality)}
-                  className={`px-3 py-2 rounded-lg font-semibold flex items-center space-x-2 transition ${
+                  className={`px-3 py-1.5 rounded-lg font-medium flex items-center space-x-2 transition ${
                     selectedModality === tab.id
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-800/40'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                   }`}
                 >
                   {tab.icon}
@@ -611,21 +612,22 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
                 <button
                   disabled={(!selectedFile && !directText.trim()) || isAnalyzing}
                   onClick={handleStartAnalysis}
-                  className={`w-full py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center space-x-2 transition shadow-lg ${
+                  className={`w-full py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center space-x-2 transition shadow-md ${
                     (selectedFile || directText.trim()) && !isAnalyzing
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-cyan-500/25 cursor-pointer'
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40 cursor-pointer'
                       : 'bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed'
                   }`}
                 >
                   {isAnalyzing ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-cyan-300" />
-                      <span>Executing {selectedModality.toUpperCase()} Forensics...</span>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Analyzing {selectedModality.toUpperCase()} Evidence...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4 text-cyan-200" />
-                      <span>Commence Forensic Investigation</span>
+                      <ShieldCheck className="w-4 h-4 text-blue-300" />
+                      <span>Commence Forensic Examination</span>
+                      <ArrowRight className="w-4 h-4 text-blue-300" />
                     </>
                   )}
                 </button>
@@ -645,10 +647,10 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
             <div className="flex items-center space-x-2">
               <button
                 onClick={handleReset}
-                className="px-3 py-1.5 rounded-lg border border-slate-700 bg-cyber-900 text-slate-300 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition"
+                className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
-                <span>New Investigation</span>
+                <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+                <span>New Case Investigation</span>
               </button>
               <span className="text-xs text-slate-400 font-mono hidden sm:inline">
                 Case: <strong className="text-white">{analysisResult.image_name}</strong> ({analysisResult.modality.toUpperCase()})
@@ -656,20 +658,20 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
             </div>
 
             {/* Diagnostic View Tabs */}
-            <div className="flex items-center flex-wrap gap-1 bg-cyber-900/90 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+            <div className="flex items-center flex-wrap gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs font-medium">
               <button
                 onClick={() => setActiveTab('scorecard')}
                 className={`px-3 py-1.5 rounded-lg transition ${
-                  activeTab === 'scorecard' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                  activeTab === 'scorecard' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Evidence Scorecard (USP)
+                Evidence Scorecard
               </button>
 
               <button
                 onClick={() => setActiveTab('diagnostics')}
                 className={`px-3 py-1.5 rounded-lg transition ${
-                  activeTab === 'diagnostics' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                  activeTab === 'diagnostics' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {analysisResult.modality === 'video' ? 'Video Deepfake Diagnostics' :
@@ -681,29 +683,29 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
               <button
                 onClick={() => setActiveTab('metadata')}
                 className={`px-3 py-1.5 rounded-lg transition ${
-                  activeTab === 'metadata' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                  activeTab === 'metadata' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                File & Metadata
+                Provenance & EXIF
               </button>
 
               <button
                 onClick={() => setActiveTab('ai')}
                 className={`px-3 py-1.5 rounded-lg transition ${
-                  activeTab === 'ai' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                  activeTab === 'ai' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Gemini AI Reasoning
+                AI Semantic Reasoning
               </button>
 
               {analysisResult.caption_comparison?.caption_provided && (
                 <button
                   onClick={() => setActiveTab('caption')}
                   className={`px-3 py-1.5 rounded-lg transition ${
-                    activeTab === 'caption' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                    activeTab === 'caption' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Claim Cross-Check
+                  Claim Alignment Check
                 </button>
               )}
             </div>
@@ -746,44 +748,44 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
         </div>
       )}
 
-      {/* Animated Multimodal Progress Stepper Overlay */}
+      {/* Corporate Animated Multimodal Progress Stepper Overlay */}
       {isAnalyzing && (
-        <div className="fixed inset-0 z-50 bg-cyber-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-card-active max-w-md w-full p-6 rounded-2xl border border-cyan-500/40 space-y-5 shadow-2xl text-center">
+        <div className="fixed inset-0 z-50 bg-[#080c14]/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel max-w-md w-full p-6 rounded-2xl border border-blue-500/30 space-y-5 shadow-2xl text-center">
             
-            <div className="w-16 h-16 rounded-2xl bg-cyan-950 border border-cyan-500/40 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/20">
-              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+            <div className="w-14 h-14 rounded-2xl bg-blue-950/80 border border-blue-500/40 flex items-center justify-center mx-auto shadow-lg shadow-blue-900/30">
+              <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white tracking-wide">
-                Executing {selectedModality.toUpperCase()} Forensics
+              <h3 className="text-base font-bold text-white tracking-tight">
+                Executing {selectedModality.toUpperCase()} Forensic Pipeline
               </h3>
               <p className="text-xs text-slate-400">
-                Multi-layer inspection across mathematical signal, cryptographic and AI pipelines
+                Synchronized inspection across signal processing and AI reasoning layers
               </p>
             </div>
 
             {/* Stepper Display */}
-            <div className="space-y-2 text-left bg-cyber-950/70 p-3.5 rounded-xl border border-slate-800">
+            <div className="space-y-2 text-left bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
               {MODALITY_STEPS[selectedModality].map((step, idx) => (
                 <div key={idx} className="flex items-center space-x-2 text-xs">
                   {idx < currentStepIndex ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                   ) : idx === currentStepIndex ? (
-                    <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin flex-shrink-0" />
+                    <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin flex-shrink-0" />
                   ) : (
                     <div className="w-3.5 h-3.5 rounded-full border border-slate-700 flex-shrink-0" />
                   )}
-                  <span className={idx === currentStepIndex ? 'text-cyan-300 font-semibold' : idx < currentStepIndex ? 'text-slate-400' : 'text-slate-600'}>
+                  <span className={idx === currentStepIndex ? 'text-blue-300 font-medium' : idx < currentStepIndex ? 'text-slate-400' : 'text-slate-600'}>
                     {step}
                   </span>
                 </div>
               ))}
             </div>
 
-            <p className="text-[11px] text-slate-500 font-mono italic">
-              TruthLens Multimodal Forensic Core • Problem Statement PS04
+            <p className="text-[11px] text-slate-500 font-mono">
+              TruthLens Enterprise Forensics • ISO 27037 Standard
             </p>
 
           </div>

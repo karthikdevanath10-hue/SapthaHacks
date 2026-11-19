@@ -2,10 +2,18 @@ import logging
 import os
 import time
 import uuid
+<<<<<<< HEAD
 from datetime import datetime, timezone
 from typing import Optional, List
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+=======
+import shutil
+import asyncio
+from datetime import datetime, timezone
+from typing import Optional, List
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
+>>>>>>> 4ddf713 (feat: Upgrade to enterprise corporate design and parallel async speed optimization)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -123,6 +131,7 @@ def _run(name: str, model: str, version: str, status: str, findings: int, score_
 @app.post("/api/analyze", response_model=FullAnalysisResponse)
 async def analyze_multimodal_media(
     request: Request,
+    background_tasks: BackgroundTasks,
     file: Optional[UploadFile] = File(None),
     text_content: Optional[str] = Form(None),
     caption: Optional[str] = Form(None),
@@ -144,6 +153,7 @@ async def analyze_multimodal_media(
     audio_diag: Optional[AudioDiagnostics] = None
     text_diag: Optional[TextDiagnostics] = None
     technical_res: TechnicalResult = TechnicalResult()
+    quality_gate_res: Optional[QualityGateResult] = None
 
     # Determine Modality & save file or text payload
     if text_content and (not file or file.filename == ""):
@@ -186,66 +196,88 @@ async def analyze_multimodal_media(
     else:
         raise HTTPException(status_code=400, detail="Please upload a media file or provide text content.")
 
-    # 1. Base Metadata & SHA-256 Extraction
+    # 1. Base Metadata & SHA-256 Extraction (Instant local hash)
     metadata_res, meta_evidence = extract_metadata(filepath, file.filename if file else filename)
     all_evidence.extend(meta_evidence)
 
-    # 2. Modality-Specific Diagnostic Execution
+    # 2. Modality-Specific Diagnostic Execution with Parallel Optimization
     if modality == "video":
         video_diag, ai_res, vid_evidence = await analyze_video_forensics(filepath, filename)
         all_evidence.extend(vid_evidence)
-    elif modality == "audio":
-        audio_diag, ai_res, aud_evidence = await analyze_audio_forensics(filepath, filename)
-        all_evidence.extend(aud_evidence)
-    elif modality == "text":
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-            content_to_check = f.read()
-        text_diag, ai_res, txt_evidence = await analyze_text_forensics(content_to_check, filename)
-        all_evidence.extend(txt_evidence)
-    else:
-        # Standard Image
-        technical_res, tech_evidence = analyze_technical_properties(filepath)
-        all_evidence.extend(tech_evidence)
-        ai_res, ai_evidence = await analyze_with_gemini(filepath)
-        all_evidence.extend(ai_evidence)
-
-    # 3. Quality Gate Evaluation
-    quality_gate_res: Optional[QualityGateResult] = None
-    if modality == "image":
-        quality_gate_res, qual_ev = assess_image_quality(filepath)
-        if qual_ev:
-            all_evidence.append(qual_ev)
-    elif modality == "video" and video_diag:
-        quality_gate_res, qual_ev = assess_video_quality(
-            video_diag.duration_seconds, video_diag.frame_count,
-            video_diag.resolution.get("width", 0), video_diag.resolution.get("height", 0)
-        )
-        if qual_ev:
-            all_evidence.append(qual_ev)
-    elif modality == "audio" and audio_diag:
-        quality_gate_res, qual_ev = assess_audio_quality(
-            audio_diag.duration_seconds, audio_diag.sample_rate_hz
-        )
-        if qual_ev:
-            all_evidence.append(qual_ev)
-    elif modality == "text" and text_diag:
-        quality_gate_res, qual_ev = assess_text_quality(text_diag.word_count)
-        if qual_ev:
-            all_evidence.append(qual_ev)
-
-    # 4. Caption / Claim Cross-Verification (Multimodal Misattribution Check)
-    if modality == "image":
-        caption_res, cap_evidence = await cross_verify_caption_and_image(
-            filepath, caption, source_context, ai_res
-        )
-        all_evidence.extend(cap_evidence)
-    else:
+        if video_diag:
+            quality_gate_res, qual_ev = assess_video_quality(
+                video_diag.duration_seconds, video_diag.frame_count,
+                video_diag.resolution.get("width", 0), video_diag.resolution.get("height", 0)
+            )
+            if qual_ev:
+                all_evidence.append(qual_ev)
         caption_res, cap_evidence = await cross_verify_generic_modality_claim(
             modality, caption, source_context, ai_res
         )
         all_evidence.extend(cap_evidence)
 
-    # 5. Multi-Layer Evidence Scorecard & Final Assessment Aggregation
+    elif modality == "audio":
+        audio_diag, ai_res, aud_evidence = await analyze_audio_forensics(filepath, filename)
+        all_evidence.extend(aud_evidence)
+        if audio_diag:
+            quality_gate_res, qual_ev = assess_audio_quality(
+                audio_diag.duration_seconds, audio_diag.sample_rate_hz
+            )
+            if qual_ev:
+                all_evidence.append(qual_ev)
+        caption_res, cap_evidence = await cross_verify_generic_modality_claim(
+            modality, caption, source_context, ai_res
+        )
+        all_evidence.extend(cap_evidence)
+
+    elif modality == "text":
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            content_to_check = f.read()
+        text_diag, ai_res, txt_evidence = await analyze_text_forensics(content_to_check, filename)
+        all_evidence.extend(txt_evidence)
+        if text_diag:
+            quality_gate_res, qual_ev = assess_text_quality(text_diag.word_count)
+            if qual_ev:
+                all_evidence.append(qual_ev)
+        caption_res, cap_evidence = await cross_verify_generic_modality_claim(
+            modality, caption, source_context, ai_res
+        )
+        all_evidence.extend(cap_evidence)
+
+    else:
+        # Standard Image: Run local CV & Quality checks instantly
+        technical_res, tech_evidence = analyze_technical_properties(filepath)
+        all_evidence.extend(tech_evidence)
+        quality_gate_res, qual_ev = assess_image_quality(filepath)
+        if qual_ev:
+            all_evidence.append(qual_ev)
+
+        # Execute Gemini Vision & Cross-Verification concurrently
+        tasks = [analyze_with_gemini(filepath)]
+        if caption and caption.strip():
+            tasks.append(cross_verify_caption_and_image(
+                filepath, caption, source_context, AIVisualResult(scene_description="Parallel inspection")
+            ))
+
+        ai_outcomes = await asyncio.gather(*tasks)
+        ai_res, ai_evidence = ai_outcomes[0]
+        all_evidence.extend(ai_evidence)
+
+        if len(ai_outcomes) > 1:
+            caption_res, cap_evidence = ai_outcomes[1]
+            all_evidence.extend(cap_evidence)
+        else:
+            caption_res = CaptionComparisonResult(
+                caption_provided=False,
+                caption_text=None,
+                source_context=source_context,
+                consistency_verdict="No Caption Provided",
+                discrepancy_details=[],
+                semantic_match_score=1.0,
+                explanation="Direct image analysis executed."
+            )
+
+    # 3. Multi-Layer Evidence Scorecard & Final Assessment Aggregation
     assessment, indicator_score, summary, scorecard, limitations, recommendations = synthesize_evidence_scorecard(
         metadata=metadata_res,
         technical=technical_res,
@@ -280,14 +312,9 @@ async def analyze_multimodal_media(
         created_at=created_at
     )
 
-    # 5. Generate Cryptographic PDF Dossier
-    try:
-        generate_pdf_report(full_response)
-    except Exception as e:
-        print(f"[PDF Report] Generation notice: {e}")
-
-    # 6. Save to Supabase (with local store fallback)
-    await supabase_service.save_investigation(full_response.dict(), user_id=user_id)
+    # 4. Asynchronous Background Tasks (Zero latency blocking)
+    background_tasks.add_task(generate_pdf_report, full_response)
+    background_tasks.add_task(supabase_service.save_investigation, full_response.dict(), user_id)
 
     return full_response
 

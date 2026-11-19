@@ -224,27 +224,27 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
               </div>
             </div>
 
-            {/* Quick 10-Second Pitch for Presentation */}
-            <div className="p-3.5 rounded-xl bg-cyber-950/80 border border-slate-800 text-xs space-y-1.5 max-w-3xl">
-              <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center space-x-1.5">
+            {/* Executive Forensic Briefing */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-1.5 max-w-3xl">
+              <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider flex items-center space-x-1.5">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Quick Hackathon Presentation Summary (Say this to the judges):</span>
+                <span>Executive Forensic Briefing:</span>
               </span>
-              <p className="text-slate-300 leading-relaxed font-sans">
+              <p className="text-slate-200 leading-relaxed font-sans">
                 "{analysis.summary}"
               </p>
             </div>
 
             {/* File Details Bar */}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-mono text-slate-400 pt-1">
-              <span>SHA-256: <code className="text-cyan-300">{analysis.image_hash.slice(0, 16)}...</code></span>
+              <span>SHA-256: <code className="text-blue-300">{analysis.image_hash.slice(0, 16)}...</code></span>
               <span>Size: <strong className="text-slate-200">{analysis.metadata.file_size_human}</strong></span>
               <span>Dimensions: <strong className="text-slate-200">{analysis.metadata.dimensions.width}×{analysis.metadata.dimensions.height}</strong></span>
             </div>
           </div>
 
           {/* Anomaly Gauge & PDF Export Button */}
-          <div className="bg-cyber-950/90 p-6 rounded-2xl border border-slate-800 flex flex-col items-center justify-center min-w-[240px] text-center shadow-xl">
+          <div className="bg-slate-950/90 p-6 rounded-2xl border border-slate-800 flex flex-col items-center justify-center min-w-[240px] text-center shadow-xl">
             <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-1">
               Suspicious Indicator Score
             </span>
@@ -269,10 +269,10 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
 
             <button
               onClick={handleDownload}
-              className="mt-4 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold flex items-center justify-center space-x-2 transition shadow-md shadow-cyan-600/30"
+              className="mt-4 w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-md shadow-blue-900/30 cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              <span>Download PDF Dossier</span>
+              <span>Export Official Dossier (PDF)</span>
             </button>
           </div>
 
@@ -293,23 +293,23 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
           </p>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center flex-wrap gap-1.5 bg-cyber-900/80 p-1.5 rounded-xl border border-slate-800 text-xs">
+        {/* Corporate Filter Pills */}
+        <div className="flex items-center flex-wrap gap-1.5 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 text-xs">
           {[
             { id: 'all', label: `All Findings (${analysis.evidence_scorecard.length})` },
             { id: 'flagged', label: 'Flagged Only' },
             { id: 'metadata', label: 'Metadata' },
             { id: 'technical', label: 'Technical Signal' },
             { id: 'vision', label: 'AI Reasoning' },
-            { id: 'caption', label: 'Caption Check' },
+            { id: 'caption', label: 'Claim Check' },
           ].map(f => (
             <button
               key={f.id}
               onClick={() => setActiveFilter(f.id)}
-              className={`px-3 py-1 rounded-lg transition font-medium ${
+              className={`px-3 py-1.5 rounded-lg transition font-medium ${
                 activeFilter === f.id
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
               }`}
             >
               {f.label}
