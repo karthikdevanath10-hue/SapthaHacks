@@ -93,30 +93,6 @@ export const WelcomeIntroPage: React.FC<WelcomeIntroPageProps> = ({
           </div>
 
           <div className="flex items-center space-x-2.5 sm:space-x-4">
-            {/* Telemetry Status Pills */}
-            <div className="hidden md:flex items-center space-x-2 text-[11px]">
-              <div className={`flex items-center space-x-1.5 px-3 py-1 rounded-full border backdrop-blur-md ${
-                apiStatus.healthy ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/60 border-rose-500/40 text-rose-300'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${apiStatus.healthy ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-                <span>{apiStatus.healthy ? 'Engine Online' : 'Engine Offline'}</span>
-              </div>
-
-              <div className={`flex items-center space-x-1.5 px-3 py-1 rounded-full border backdrop-blur-md ${
-                apiStatus.gemini ? 'bg-purple-950/60 border-purple-500/40 text-purple-300' : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
-              }`}>
-                <Sparkles className="w-3 h-3 text-purple-400" />
-                <span>{apiStatus.gemini ? 'Gemini 3.5 Vision Active' : 'Heuristic Mode'}</span>
-              </div>
-
-              <div className={`flex items-center space-x-1.5 px-3 py-1 rounded-full border backdrop-blur-md ${
-                apiStatus.supabase ? 'bg-indigo-950/60 border-indigo-500/40 text-indigo-300' : 'bg-slate-900/60 border-slate-700 text-slate-400'
-              }`}>
-                <Database className="w-3 h-3 text-indigo-400" />
-                <span>{apiStatus.supabase ? 'Supabase Synced' : 'Local Storage'}</span>
-              </div>
-            </div>
-
             <button
               onClick={() => onEnterWorkspace()}
               className="px-4 py-2 rounded-xl bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/40 text-purple-200 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition shadow-[0_0_15px_rgba(168,85,247,0.2)] cursor-pointer"
