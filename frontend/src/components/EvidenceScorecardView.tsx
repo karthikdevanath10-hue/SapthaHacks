@@ -77,6 +77,20 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
     const id = item.id.toUpperCase();
     const title = item.title.toLowerCase();
 
+    if (id.includes('META-04-LIVE') || title.includes('direct browser optical') || analysis.image_name.toLowerCase().includes('live_capture')) {
+      return {
+        badge: 'Live Optical Stream',
+        simpleTitle: 'Live In-Browser Camera Capture (Clean Pixel Buffer)',
+        takeaway: 'This image was captured live directly from your camera via TruthLens. Standard HTML5 web browser APIs produce direct raster pixel buffers without hardware EXIF metadata.',
+        statusIcon: <ShieldCheck className="w-5 h-5 text-emerald-400" />,
+        statusColor: 'text-emerald-300',
+        borderColor: 'border-emerald-500/30',
+        bgGradient: 'from-emerald-950/40 via-slate-950/70 to-slate-950/90',
+        verdictLabel: 'AUTHENTIC STREAM',
+        verdictClass: 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
+      };
+    }
+
     if (id.includes('META-04') || title.includes('stripped') || title.includes('absent hardware')) {
       return {
         badge: 'Social Media Notice',
