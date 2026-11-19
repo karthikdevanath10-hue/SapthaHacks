@@ -53,6 +53,16 @@ export interface TechnicalResult {
   suspicious_indicators: string[];
 }
 
+export interface EditedFrameSegment {
+  timestamp_seconds: number;
+  timestamp_formatted: string;
+  frame_number: number;
+  confidence: string;
+  anomaly_type: string;
+  delta_score: number;
+  explanation: string;
+}
+
 export interface VideoDiagnostics {
   duration_seconds: number;
   fps: number;
@@ -62,6 +72,8 @@ export interface VideoDiagnostics {
   temporal_jitter_score: number;
   facial_boundary_anomaly: boolean;
   keyframes_analyzed: number;
+  edited_frame_timestamps?: number[];
+  edited_segments?: EditedFrameSegment[];
   deepfake_visual_cues: string[];
   observations: string[];
   suspicious_indicators: string[];

@@ -129,6 +129,9 @@ def generate_pdf_report(analysis: FullAnalysisResponse) -> str:
             f"<b>Temporal Motion Jitter:</b> {v.temporal_jitter_score} | <b>Facial Boundary Disparity:</b> {'FLAGGED' if v.facial_boundary_anomaly else 'Normal'}<br/>"
             f"<b>Keyframes Analyzed:</b> {v.keyframes_analyzed}"
         )
+        if v.edited_segments:
+            cuts_str = ", ".join([f"{s.timestamp_formatted} (Frame #{s.frame_number}, Delta: {s.delta_score})" for s in v.edited_segments])
+            v_info += f"<br/><b>Exact Edited Frame Timestamps ({len(v.edited_segments)} Cut-Points):</b> {cuts_str}"
         story.append(Paragraph(v_info, body_text))
         story.append(Spacer(1, 8))
 

@@ -4,11 +4,101 @@ from typing import Tuple, List, Dict, Any
 
 import cv2
 import numpy as np
-from app.models.schemas import VideoDiagnostics, EvidenceItem, AIVisualResult
+from app.models.schemas import VideoDiagnostics, EvidenceItem, AIVisualResult, EditedFrameSegment
 from app.core.config import settings
 from app.forensic.gemini_client import gemini_json
 
 logger = logging.getLogger("truthlens.video")
+
+def detect_exact_edited_frame_timestamps(filepath: str, fps: float) -> List[EditedFrameSegment]:
+    """
+    Performs dense rolling frame-by-frame temporal scan across the video to detect
+    the exact seconds and frame numbers where cuts, splices, or edits occur.
+    """
+    cap = cv2.VideoCapture(filepath)
+    if not cap.isOpened():
+        return []
+
+    fps = fps or 30.0
+    diffs = []
+    prev_gray = None
+    frame_idx = 0
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        # Fast downscaled grayscale delta
+        h, w = frame.shape[:2]
+        small_w = 320
+        small_h = int(small_w * h / w) if w > 0 else 240
+        small = cv2.resize(frame, (small_w, small_h))
+        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+        
+        if prev_gray is not None:
+            diff = float(np.mean(cv2.absdiff(prev_gray, gray)))
+            diffs.append((frame_idx, frame_idx / fps, diff))
+        prev_gray = gray
+        frame_idx += 1
+
+    cap.release()
+
+    if len(diffs) < 2:
+        return []
+
+    # Rolling window outlier detection (30 frames / 1.0 second window)
+    window = max(int(fps), 15)
+    raw_anomalies = []
+    for i in range(len(diffs)):
+        start = max(0, i - window // 2)
+        end = min(len(diffs), i + window // 2)
+        local_vals = [diffs[j][2] for j in range(start, end) if j != i]
+        local_median = float(np.median(local_vals)) if local_vals else diffs[i][2]
+        
+        val = diffs[i][2]
+        # Spike exceeds 2.8x local median or is an absolute high spike (> 15.0)
+        if (val > max(local_median * 2.8, 6.0)) or val > 15.0:
+            raw_anomalies.append(diffs[i])
+
+    # Cluster detections that occur within 0.55s of each other (keep the highest peak)
+    clusters = []
+    for f_idx, sec, val in raw_anomalies:
+        if not clusters or sec - clusters[-1][1] > 0.55:
+            clusters.append((f_idx, sec, val))
+        else:
+            if val > clusters[-1][2]:
+                clusters[-1] = (f_idx, sec, val)
+
+    segments: List[EditedFrameSegment] = []
+    for f_idx, sec, val in clusters:
+        mins = int(sec // 60)
+        secs = sec % 60
+        formatted = f"{mins:02d}:{secs:04.1f}s"
+        
+        if val > 30.0:
+            anomaly_type = "Severe Splice Cut / Scene Transition"
+            confidence = "High Confidence"
+            explanation = f"Massive inter-frame pixel delta ({val:.1f}) detected at {formatted} (Frame #{f_idx}), indicating an inserted clip or cut edit."
+        elif val > 12.0:
+            anomaly_type = "Inter-Frame Discontinuity / Boundary Edit"
+            confidence = "High Confidence"
+            explanation = f"Sharp temporal transition jump ({val:.1f}) detected at {formatted} (Frame #{f_idx}), consistent with cut-point or frame splice."
+        else:
+            anomaly_type = "Temporal Motion / Artifact Jitter"
+            confidence = "Moderate Confidence"
+            explanation = f"Localized inter-frame variance spike ({val:.1f}) detected at {formatted} (Frame #{f_idx})."
+
+        segments.append(EditedFrameSegment(
+            timestamp_seconds=round(sec, 2),
+            timestamp_formatted=formatted,
+            frame_number=f_idx,
+            confidence=confidence,
+            anomaly_type=anomaly_type,
+            delta_score=round(val, 2),
+            explanation=explanation
+        ))
+
+    return segments
 
 def extract_video_properties_and_frames(filepath: str, max_samples: int = 5) -> Tuple[Dict[str, Any], List[np.ndarray], List[str]]:
     cap = cv2.VideoCapture(filepath)
@@ -177,15 +267,39 @@ async def analyze_video_forensics(filepath: str, original_filename: str) -> Tupl
     # 1. Properties & Keyframes
     meta, frames, b64_frames = extract_video_properties_and_frames(filepath, max_samples=5)
     
-    # 2. OpenCV Temporal & Facial Analysis
+    # 2. Dense Frame-by-Frame Cut & Edit Detection (Exact Seconds & Timestamps)
+    edited_segments = detect_exact_edited_frame_timestamps(filepath, meta["fps"])
+    edited_timestamps = [s.timestamp_seconds for s in edited_segments]
+
+    # 3. OpenCV Temporal & Facial Analysis
     temporal_jitter, facial_anomaly, cv_obs = analyze_temporal_and_facial_consistency(frames)
 
-    # 3. Gemini Multimodal Keyframe Analysis
+    # 4. Gemini Multimodal Keyframe Analysis
     deepfake_cues, gemini_obs, scene_desc, gemini_impact = await analyze_video_with_gemini(b64_frames, meta)
 
     all_obs = cv_obs + gemini_obs
 
     # Heuristic evidence items
+    if edited_segments:
+        formatted_list = ", ".join([f"{s.timestamp_formatted} (Frame #{s.frame_number})" for s in edited_segments])
+        suspicious_indicators.append(f"Edited / Spliced frames detected at exact timestamps: {formatted_list}")
+        
+        max_delta = max(s.delta_score for s in edited_segments)
+        edit_impact = 25 if max_delta > 30.0 else 18 if max_delta > 15.0 else 12
+
+        evidence_items.append(EvidenceItem(
+            id="VID-EDIT-01",
+            title=f"Edited & Spliced Frames Detected at Exact Seconds ({len(edited_segments)} Edit Points)",
+            layer="Temporal Video Forensics",
+            severity="suspicious" if max_delta > 20.0 else "medium",
+            confidence="High Confidence",
+            explanation=f"Frame-by-frame temporal profiling isolated exact editing cut points at: {formatted_list}.",
+            why_flagged=f"Inter-frame delta analysis detected sharp mathematical gradient spikes (delta magnitude up to {max_delta:.1f}) at these exact seconds, indicating inserted scenes, frame splices, or post-production assembly.",
+            limitations="Natural hard scene changes in legitimate edited montages also produce cut points; corroboration with metadata and audio tracks is recommended.",
+            evidence_source="Dense Temporal Rolling Frame Discontinuity Scanner",
+            score_impact=edit_impact
+        ))
+
     if facial_anomaly:
         suspicious_indicators.append("Sharpness disparity between facial boundary and torso/neck contour.")
         evidence_items.append(EvidenceItem(
@@ -254,6 +368,8 @@ async def analyze_video_forensics(filepath: str, original_filename: str) -> Tupl
         temporal_jitter_score=round(temporal_jitter, 2),
         facial_boundary_anomaly=facial_anomaly,
         keyframes_analyzed=len(frames),
+        edited_frame_timestamps=edited_timestamps,
+        edited_segments=edited_segments,
         deepfake_visual_cues=deepfake_cues,
         observations=all_obs,
         suspicious_indicators=suspicious_indicators

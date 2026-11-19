@@ -52,6 +52,15 @@ class TechnicalResult(BaseModel):
     observations: List[str] = []
     suspicious_indicators: List[str] = []
 
+class EditedFrameSegment(BaseModel):
+    timestamp_seconds: float
+    timestamp_formatted: str
+    frame_number: int
+    confidence: str = "High Confidence"
+    anomaly_type: str
+    delta_score: float
+    explanation: str
+
 class VideoDiagnostics(BaseModel):
     duration_seconds: float
     fps: float
@@ -61,6 +70,8 @@ class VideoDiagnostics(BaseModel):
     temporal_jitter_score: float
     facial_boundary_anomaly: bool
     keyframes_analyzed: int
+    edited_frame_timestamps: List[float] = []
+    edited_segments: List[EditedFrameSegment] = []
     deepfake_visual_cues: List[str] = []
     observations: List[str] = []
     suspicious_indicators: List[str] = []

@@ -168,6 +168,34 @@ export const VideoViewer: React.FC<VideoViewerProps> = ({ video }) => {
 
       </div>
 
+      {/* Exact Edited Frame Timestamps & Spliced Segments */}
+      {video.edited_segments && video.edited_segments.length > 0 && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-rose-700 font-bold">
+              <Film className="w-4 h-4 text-rose-600" />
+              <span>Exact Edited Frame Cut-Points ({video.edited_segments.length} Edits Detected)</span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-100 text-rose-800 border border-rose-300">
+              Temporal Discontinuity Logged
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+            {video.edited_segments.map((seg, idx) => (
+              <div key={idx} className="p-2.5 rounded-lg bg-white/80 border border-rose-200 flex flex-col justify-between space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-rose-800">{seg.timestamp_formatted}</span>
+                  <span className="text-[10px] font-mono text-slate-500">Frame #{seg.frame_number}</span>
+                </div>
+                <div className="text-[11px] font-semibold text-slate-800">{seg.anomaly_type}</div>
+                <div className="text-[10px] text-rose-600 font-mono">Delta Spike: {seg.delta_score}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Flagged Visual Deepfake Cues */}
       {video.deepfake_visual_cues && video.deepfake_visual_cues.length > 0 && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs space-y-1.5 shadow-xs">
