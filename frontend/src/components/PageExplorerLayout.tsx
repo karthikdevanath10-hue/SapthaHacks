@@ -42,6 +42,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isDialCollapsed, setIsDialCollapsed] = useState<boolean>(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Modality file upload / analysis states for the right pane
@@ -621,23 +622,14 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
           </div>
 
           <div className="flex items-center space-x-3">
-            {currentUser ? (
-              <button 
-                onClick={onSignOut}
-                title="Sign Out"
-                className="w-9 h-9 rounded-full bg-purple-900/40 border border-purple-500/50 flex items-center justify-center text-purple-300 hover:text-white hover:border-purple-400 transition cursor-pointer shadow-md"
-              >
-                <User className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={onOpenAuth}
-                className="px-4 py-2 rounded-full bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 text-white text-xs font-semibold shadow-md shadow-purple-600/30 transition flex items-center space-x-1.5 cursor-pointer"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Sign In</span>
-              </button>
-            )}
+            <button 
+              type="button"
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Lead Examiner Profile & Credentials"
+              className="w-10 h-10 rounded-full bg-purple-950/70 border border-purple-500/50 hover:border-purple-300 hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-purple-200 hover:text-white shadow-[0_0_20px_rgba(168,85,247,0.35)] ring-2 ring-purple-500/30 cursor-pointer"
+            >
+              <User className="w-5 h-5 text-purple-200" />
+            </button>
           </div>
         </div>
 
@@ -1351,6 +1343,151 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
         </div>
 
       </div>
+
+      {/* ======================================================== */}
+      {/* LEAD EXAMINER PROFILE DETAILS MODAL */}
+      {/* ======================================================== */}
+      {isProfileModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setIsProfileModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-lg bg-slate-950/95 border border-purple-500/40 rounded-3xl shadow-[0_24px_70px_rgba(0,0,0,0.9),0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl p-6 sm:p-8 relative overflow-hidden text-white font-sans space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Ambient background glow */}
+            <div className="absolute top-0 right-0 w-72 h-72 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-72 h-72 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Close button */}
+            <button
+              onClick={() => setIsProfileModalOpen(false)}
+              className="absolute top-5 right-5 p-2 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 hover:text-white hover:border-purple-400 transition cursor-pointer"
+              title="Close Profile"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header: Lead Examiner Card */}
+            <div className="flex items-start space-x-4 border-b border-purple-500/20 pb-5">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 via-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/40 ring-2 ring-purple-300/40">
+                  <User className="w-8 h-8 text-white" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 ring-2 ring-slate-950 flex items-center justify-center" title="Active Lead Session">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                </div>
+              </div>
+
+              <div className="space-y-1 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-purple-900/70 text-purple-300 border border-purple-500/40">
+                    {currentUser ? 'Authenticated Investigator' : 'Lead Examiner (Demo Profile)'}
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-500/40">
+                    Active Session
+                  </span>
+                </div>
+                
+                <h3 className="text-xl font-extrabold text-white tracking-tight">
+                  {currentUser?.full_name || 'Dr. Elena Vance'}
+                </h3>
+                <p className="text-xs text-purple-300 font-medium">
+                  Chief Digital Forensics Examiner & Provenance Lead
+                </p>
+                <p className="text-[11px] font-mono text-purple-400/80">
+                  {currentUser?.email || 'lead.examiner@truthlens.ai'}
+                </p>
+              </div>
+            </div>
+
+            {/* Forensic Examiner Credentials Grid */}
+            <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+              <div className="p-3 rounded-xl bg-slate-900/70 border border-purple-500/20 space-y-1">
+                <span className="text-[10px] uppercase text-purple-400">Examiner ID</span>
+                <p className="font-bold text-white">#TL-8429-EXAM</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/70 border border-purple-500/20 space-y-1">
+                <span className="text-[10px] uppercase text-purple-400">Judicial Clearance</span>
+                <p className="font-bold text-emerald-400">Level 4 Federal</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/70 border border-purple-500/20 space-y-1">
+                <span className="text-[10px] uppercase text-purple-400">Department</span>
+                <p className="font-bold text-white truncate">AI Provenance Taskforce</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/70 border border-purple-500/20 space-y-1">
+                <span className="text-[10px] uppercase text-purple-400">Evidence Vault</span>
+                <p className="font-bold text-purple-300 truncate">
+                  {storageStats ? `${(storageStats.total_size_bytes / (1024 * 1024)).toFixed(1)} MB • ${storageStats.total_files_count} Files` : '17.01 MB • 53 Files'}
+                </p>
+              </div>
+            </div>
+
+            {/* Authorized Diagnostic Toolsets */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">
+                Active Diagnostic Clearances & Capabilities
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/20 flex items-center space-x-2 text-purple-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Image ELA & Pixel Noise</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/20 flex items-center space-x-2 text-purple-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Video Motion Jitter Flow</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/20 flex items-center space-x-2 text-purple-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Audio FFT & Acoustic Prosody</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/20 flex items-center space-x-2 text-purple-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Text Stylometry LLM Checks</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="pt-2 border-t border-purple-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+              {currentUser ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileModalOpen(false);
+                    onSignOut();
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-500/40 text-rose-300 hover:text-white text-xs font-semibold flex items-center justify-center space-x-2 transition cursor-pointer"
+                >
+                  <span>Sign Out Session</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileModalOpen(false);
+                    onOpenAuth();
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 border border-purple-400/50 text-white text-xs font-semibold flex items-center justify-center space-x-2 shadow-[0_0_20px_rgba(168,85,247,0.4)] transition cursor-pointer"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Sign In with Custom Account</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(false)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-purple-500/30 text-purple-200 text-xs font-semibold transition cursor-pointer"
+              >
+                Close Dossier
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
