@@ -1,22 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Camera, Image as ImageIcon, Video, Mic, FileText, ShieldCheck, 
-  Database, Globe, BarChart3, Search, User, Download, Trash2, 
-  RefreshCw, Plus, ArrowRight, CheckCircle2, AlertTriangle, 
+import {
+  Camera, Image as ImageIcon, Video, Mic, FileText, ShieldCheck,
+  Database, Globe, BarChart3, Search, User, Download, Trash2,
+  RefreshCw, Plus, ArrowRight, CheckCircle2, AlertTriangle,
   ShieldAlert, Sparkles, FolderOpen, ChevronRight, Layers,
   UploadCloud, Play, Square, Radio, ExternalLink, Zap, X
 } from 'lucide-react';
 import { InvestigationSummary, FullAnalysisResponse, MediaModality, UserProfile } from '../types';
 import { apiService } from '../services/api';
 
-export type ExplorerOptionId = 
-  | 'image' 
-  | 'video' 
-  | 'audio' 
-  | 'text' 
-  | 'audit' 
-  | 'storage' 
-  | 'mcp' 
+export type ExplorerOptionId =
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'text'
+  | 'audit'
+  | 'storage'
+  | 'mcp'
   | 'analytics';
 
 interface PageExplorerLayoutProps {
@@ -24,7 +24,7 @@ interface PageExplorerLayoutProps {
   onOpenAuth: () => void;
   onSignOut: () => void;
   onOpenInvestigation: (id: string) => void;
-  onInspectResult: (result: FullAnalysisResponse) => void;
+  onInspectResult: (result: FullAnalysisResponse, previewUrl?: string) => void;
   apiStatus: { healthy: boolean; supabase: boolean; gemini: boolean };
 }
 
@@ -130,22 +130,22 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
   const searchResults = searchQuery.trim()
     ? investigations.filter(inv => {
-        const q = searchQuery.toLowerCase().trim();
-        const name = (inv.image_name || '').toLowerCase();
-        const id = (inv.id || '').toLowerCase();
-        const hash = (inv.image_hash || '').toLowerCase();
-        const caption = (inv.caption || '').toLowerCase();
-        const modality = detectModality(inv.image_name);
-        const assessment = (inv.assessment || '').toLowerCase();
-        return (
-          name.includes(q) ||
-          id.includes(q) ||
-          hash.includes(q) ||
-          caption.includes(q) ||
-          modality.includes(q) ||
-          assessment.includes(q)
-        );
-      })
+      const q = searchQuery.toLowerCase().trim();
+      const name = (inv.image_name || '').toLowerCase();
+      const id = (inv.id || '').toLowerCase();
+      const hash = (inv.image_hash || '').toLowerCase();
+      const caption = (inv.caption || '').toLowerCase();
+      const modality = detectModality(inv.image_name);
+      const assessment = (inv.assessment || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        id.includes(q) ||
+        hash.includes(q) ||
+        caption.includes(q) ||
+        modality.includes(q) ||
+        assessment.includes(q)
+      );
+    })
     : [];
 
   const matchingStorageFiles = (searchQuery.trim() && storageStats?.files)
@@ -236,7 +236,15 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       });
       fetchHistory();
       fetchStorage();
-      onInspectResult(res);
+      let localBlobUrl: string | undefined;
+      if (selectedFile) {
+        try {
+          localBlobUrl = URL.createObjectURL(selectedFile);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      onInspectResult(res, localBlobUrl);
     } catch (err: any) {
       const detail = err.response?.data?.detail || err.message || 'Forensic examination failed';
       setAnalysisError(detail);
@@ -318,7 +326,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
   return (
     <div className="h-screen max-h-screen h-[100dvh] bg-[#070314] text-white relative overflow-hidden font-sans select-none flex flex-col lg:flex-row items-stretch">
-      
+
       {/* Ambient Neon Glow Gradients */}
       <div className="absolute top-0 left-0 w-[550px] h-[550px] bg-purple-600/15 rounded-full blur-[130px] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none" />
@@ -329,14 +337,13 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       {/* FLUSH TO TOP END, LOWER END, AND LEFT SCREEN EDGE */}
       {/* COLLAPSIBLE VIA GLOWING APEX DOT */}
       {/* ======================================================== */}
-      <div 
-        className={`w-[320px] sm:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col justify-between relative z-30 select-none pl-6 sm:pl-8 pr-6 sm:pr-8 pt-5 sm:pt-6 pb-6 sm:pb-8 rounded-l-none rounded-t-none rounded-b-none rounded-r-[220px] sm:rounded-r-[280px] lg:rounded-r-[320px] bg-slate-950/90 border-y-0 border-l-0 border-r-2 border-r-purple-400/90 shadow-[0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl transition-[margin] duration-500 ease-in-out ${
-          isDialCollapsed 
-            ? '-ml-[302px] sm:-ml-[362px] xl:-ml-[402px]' 
+      <div
+        className={`w-[320px] sm:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col justify-between relative z-30 select-none pl-6 sm:pl-8 pr-6 sm:pr-8 pt-5 sm:pt-6 pb-6 sm:pb-8 rounded-l-none rounded-t-none rounded-b-none rounded-r-[220px] sm:rounded-r-[280px] lg:rounded-r-[320px] bg-slate-950/90 border-y-0 border-l-0 border-r-2 border-r-purple-400/90 shadow-[0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl transition-[margin] duration-500 ease-in-out ${isDialCollapsed
+            ? '-ml-[302px] sm:-ml-[362px] xl:-ml-[402px]'
             : 'ml-0'
-        }`}
+          }`}
       >
-        
+
         {/* Interactive Glowing Neon Apex Dot - Collapse & Expand Trigger */}
         <button
           type="button"
@@ -372,7 +379,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
         {/* 2. MIDDLE CAPABILITY SELECTOR (Vertically Centered) */}
         <div className="my-auto py-3 space-y-4">
-          
+
           {/* Dial Header */}
           <div className="border-b border-purple-500/20 pb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
@@ -382,50 +389,46 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
           {/* 2-Column Curved Grid of Circular Glowing Buttons (Matches Screenshot!) */}
           <div className="grid grid-cols-2 gap-y-5 sm:gap-y-6 gap-x-4 place-items-center py-1">
-                {arcMenuItems.map((item) => {
-                  const IconComponent = item.icon;
-                  const isActive = activeOption === item.id;
+            {arcMenuItems.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = activeOption === item.id;
 
-                  return (
-                    <div 
-                      key={item.id}
-                      onClick={() => handleOptionChange(item.id)}
-                      className="flex flex-col items-center group cursor-pointer transition-all duration-300"
-                    >
-                      {/* Circular Button */}
-                      <div className={`relative transition-all duration-300 flex items-center justify-center rounded-full cursor-pointer ${
-                        isActive
-                          ? 'w-16 h-16 sm:w-18 sm:h-18 bg-purple-900/60 border-2 border-purple-300 text-white ring-4 ring-purple-500/50 shadow-[0_0_32px_rgba(192,132,252,0.8)] scale-105'
-                          : 'w-14 h-14 sm:w-16 sm:h-16 bg-slate-900/70 border border-purple-500/30 text-purple-300 hover:text-white hover:border-purple-400 hover:bg-purple-900/40 hover:scale-105 shadow-md'
-                      }`}>
-                        <IconComponent className={`transition-transform duration-300 ${
-                          isActive ? 'w-7 h-7 scale-110 text-white' : 'w-6 h-6 text-purple-300 group-hover:scale-110'
-                        }`} />
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => handleOptionChange(item.id)}
+                  className="flex flex-col items-center group cursor-pointer transition-all duration-300"
+                >
+                  {/* Circular Button */}
+                  <div className={`relative transition-all duration-300 flex items-center justify-center rounded-full cursor-pointer ${isActive
+                      ? 'w-16 h-16 sm:w-18 sm:h-18 bg-purple-900/60 border-2 border-purple-300 text-white ring-4 ring-purple-500/50 shadow-[0_0_32px_rgba(192,132,252,0.8)] scale-105'
+                      : 'w-14 h-14 sm:w-16 sm:h-16 bg-slate-900/70 border border-purple-500/30 text-purple-300 hover:text-white hover:border-purple-400 hover:bg-purple-900/40 hover:scale-105 shadow-md'
+                    }`}>
+                    <IconComponent className={`transition-transform duration-300 ${isActive ? 'w-7 h-7 scale-110 text-white' : 'w-6 h-6 text-purple-300 group-hover:scale-110'
+                      }`} />
 
-                        {/* Subtle Badge Count */}
-                        {item.badge !== undefined && (
-                          <span className={`absolute -top-1 -right-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full border shadow-xs ${
-                            isActive
-                              ? 'bg-purple-500 text-white border-purple-300'
-                              : 'bg-slate-800 text-purple-300 border-purple-500/40'
-                          }`}>
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Label Underneath */}
-                      <span className={`text-xs mt-2 font-medium tracking-wide transition-colors ${
-                        isActive 
-                          ? 'font-bold text-white drop-shadow-[0_0_8px_rgba(192,132,252,0.8)]' 
-                          : 'text-purple-300/80 group-hover:text-purple-200'
-                      }`}>
-                        {item.label}
+                    {/* Subtle Badge Count */}
+                    {item.badge !== undefined && (
+                      <span className={`absolute -top-1 -right-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full border shadow-xs ${isActive
+                          ? 'bg-purple-500 text-white border-purple-300'
+                          : 'bg-slate-800 text-purple-300 border-purple-500/40'
+                        }`}>
+                        {item.badge}
                       </span>
-                    </div>
-                  );
-                })}
-              </div>
+                    )}
+                  </div>
+
+                  {/* Label Underneath */}
+                  <span className={`text-xs mt-2 font-medium tracking-wide transition-colors ${isActive
+                      ? 'font-bold text-white drop-shadow-[0_0_8px_rgba(192,132,252,0.8)]'
+                      : 'text-purple-300/80 group-hover:text-purple-200'
+                    }`}>
+                    {item.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
 
           {/* Secondary Options Pills (MCP Search & Analytics) */}
           <div className="pt-2 border-t border-purple-500/20 flex items-center justify-center gap-2">
@@ -436,11 +439,10 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                 <button
                   key={sec.id}
                   onClick={() => handleOptionChange(sec.id)}
-                  className={`px-3 py-1.5 rounded-full text-[11px] font-medium flex items-center space-x-1.5 transition cursor-pointer border ${
-                    isSecActive 
-                      ? 'bg-purple-600/80 text-white border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]' 
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-medium flex items-center space-x-1.5 transition cursor-pointer border ${isSecActive
+                      ? 'bg-purple-600/80 text-white border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]'
                       : 'bg-slate-900/50 text-purple-300/70 border-purple-500/30 hover:border-purple-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <SecIcon className="w-3.5 h-3.5" />
                   <span>{sec.label}</span>
@@ -458,13 +460,12 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       {/* ======================================================== */}
       {/* RIGHT COLUMN: SEARCH HEADER + EXPANDED WORKSPACE GLASS PANEL */}
       {/* ======================================================== */}
-      <div className={`flex-1 h-full min-h-0 flex flex-col p-4 sm:p-6 lg:p-7 pr-4 sm:pr-8 gap-3.5 overflow-hidden relative z-10 transition-all duration-500 ${
-        isDialCollapsed ? 'pl-8 sm:pl-10' : 'pl-4 sm:pl-6'
-      }`}>
-        
+      <div className={`flex-1 h-full min-h-0 flex flex-col p-4 sm:p-6 lg:p-7 pr-4 sm:pr-8 gap-3.5 overflow-hidden relative z-10 transition-all duration-500 ${isDialCollapsed ? 'pl-8 sm:pl-10' : 'pl-4 sm:pl-6'
+        }`}>
+
         {/* Top Control Bar: Search Bar + Capabilities Trigger + User Profile Avatar */}
         <div className="flex items-center justify-between flex-shrink-0 gap-3">
-          
+
           <div className="flex items-center space-x-2 flex-1 max-w-lg">
             {/* Quick Toggle Button when dial is collapsed */}
             {isDialCollapsed && (
@@ -518,7 +519,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
               {/* Live Instant Search Results Flyout */}
               {isSearchOpen && searchQuery.trim() && (
                 <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-slate-950/95 border border-purple-500/40 rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.85),0_0_30px_rgba(168,85,247,0.3)] backdrop-blur-2xl p-3 max-h-[420px] overflow-y-auto custom-scrollbar">
-                  
+
                   {/* Dropdown Header */}
                   <div className="flex items-center justify-between px-2 pb-2 border-b border-purple-500/20 text-[11px] font-mono text-purple-300/80">
                     <span>Forensic Registry Matches ({searchResults.length})</span>
@@ -622,7 +623,24 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
           </div>
 
           <div className="flex items-center space-x-3">
-            <button 
+            {currentUser ? (
+              <button
+                onClick={onSignOut}
+                title="Sign Out"
+                className="w-9 h-9 rounded-full bg-purple-900/40 border border-purple-500/50 flex items-center justify-center text-purple-300 hover:text-white hover:border-purple-400 transition cursor-pointer shadow-md"
+              >
+                <User className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={onOpenAuth}
+                className="px-4 py-2 rounded-full bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 text-white text-xs font-semibold shadow-md shadow-purple-600/30 transition flex items-center space-x-1.5 cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+            )}
+            <button
               type="button"
               onClick={() => setIsProfileModalOpen(true)}
               title="Lead Examiner Profile & Credentials"
@@ -635,13 +653,13 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
         {/* Right Glass Workspace Panel */}
         <div className="flex-1 bg-slate-950/50 border border-purple-500/30 rounded-3xl shadow-[0_0_40px_rgba(147,51,234,0.18)] backdrop-blur-2xl p-5 lg:p-7 flex flex-col justify-between relative overflow-hidden min-h-0">
-          
+
           {/* Subtle Ambient Scenic Background (Matching image) */}
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-slate-950/30 to-indigo-950/20 pointer-events-none" />
 
           {/* Workspace Content */}
           <div className="relative z-10 flex-1 flex flex-col min-h-0">
-            
+
             {/* Header of Active Page */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-purple-500/20 gap-3 flex-shrink-0">
               <div>
@@ -655,7 +673,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                 </div>
                 <h2 className="text-2xl font-extrabold text-white tracking-tight mt-0.5">
                   {arcMenuItems.find(i => i.id === activeOption)?.fullName ||
-                   secondaryMenuItems.find(i => i.id === activeOption)?.fullName}
+                    secondaryMenuItems.find(i => i.id === activeOption)?.fullName}
                 </h2>
               </div>
 
@@ -675,13 +693,13 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
             {/* DYNAMIC CONTENT AREA - ONLY THIS SCROLLS! */}
             <div className="flex-1 pt-4 overflow-y-auto pr-2 custom-scrollbar min-h-0">
-              
+
               {/* =================================================== */}
               {/* 1. IMAGE FORENSICS WORKSPACE */}
               {/* =================================================== */}
               {activeOption === 'image' && (
                 <div className="space-y-6">
-                  
+
                   {/* Uploader Card */}
                   <div className="p-6 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-4">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -787,45 +805,45 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                         .filter(i => !searchQuery || i.image_name?.toLowerCase().includes(searchQuery.toLowerCase()) || i.id?.toLowerCase().includes(searchQuery.toLowerCase()) || i.image_hash?.toLowerCase().includes(searchQuery.toLowerCase()))
                         .slice(0, 6)
                         .map(item => (
-                        <div
-                          key={item.id}
-                          onClick={() => onOpenInvestigation(item.id)}
-                          className="p-3.5 rounded-xl border border-purple-500/20 bg-slate-900/50 hover:border-purple-400 hover:bg-slate-900/80 transition cursor-pointer space-y-2 group"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <h5 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition" title={item.image_name}>
-                                {item.image_name}
-                              </h5>
-                              <p className="text-[10px] text-purple-400/60 font-mono mt-0.5">
-                                ID: {item.id.slice(0, 8)} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
-                              </p>
+                          <div
+                            key={item.id}
+                            onClick={() => onOpenInvestigation(item.id)}
+                            className="p-3.5 rounded-xl border border-purple-500/20 bg-slate-900/50 hover:border-purple-400 hover:bg-slate-900/80 transition cursor-pointer space-y-2 group"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <h5 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition" title={item.image_name}>
+                                  {item.image_name}
+                                </h5>
+                                <p className="text-[10px] text-purple-400/60 font-mono mt-0.5">
+                                  ID: {item.id.slice(0, 8)} • {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
+                                </p>
+                              </div>
+                              {getScoreBadge(item.indicator_score || 0)}
                             </div>
-                            {getScoreBadge(item.indicator_score || 0)}
-                          </div>
-                          <div className="pt-2 border-t border-purple-500/10 flex items-center justify-between text-xs">
-                            <span className="text-[10px] font-mono text-purple-400/60">
-                              SHA: {item.image_hash?.slice(0, 10)}...
-                            </span>
-                            <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={(e) => handleDownload(item.id, e)}
-                                className="p-1 rounded text-purple-400 hover:text-white transition"
-                                title="Download PDF"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={(e) => handleDelete(item.id, e)}
-                                className="p-1 rounded text-purple-400 hover:text-rose-400 transition"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                            <div className="pt-2 border-t border-purple-500/10 flex items-center justify-between text-xs">
+                              <span className="text-[10px] font-mono text-purple-400/60">
+                                SHA: {item.image_hash?.slice(0, 10)}...
+                              </span>
+                              <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={(e) => handleDownload(item.id, e)}
+                                  className="p-1 rounded text-purple-400 hover:text-white transition"
+                                  title="Download PDF"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDelete(item.id, e)}
+                                  className="p-1 rounded text-purple-400 hover:text-rose-400 transition"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
 
@@ -916,17 +934,17 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                         .filter(i => !searchQuery || i.image_name?.toLowerCase().includes(searchQuery.toLowerCase()) || i.id?.toLowerCase().includes(searchQuery.toLowerCase()) || i.image_hash?.toLowerCase().includes(searchQuery.toLowerCase()))
                         .slice(0, 6)
                         .map(item => (
-                        <div
-                          key={item.id}
-                          onClick={() => onOpenInvestigation(item.id)}
-                          className="p-3.5 rounded-xl border border-purple-500/20 bg-slate-900/50 hover:border-purple-400 transition cursor-pointer space-y-2"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <h5 className="text-xs font-bold text-white truncate" title={item.image_name}>{item.image_name}</h5>
-                            {getScoreBadge(item.indicator_score || 0)}
+                          <div
+                            key={item.id}
+                            onClick={() => onOpenInvestigation(item.id)}
+                            className="p-3.5 rounded-xl border border-purple-500/20 bg-slate-900/50 hover:border-purple-400 transition cursor-pointer space-y-2"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <h5 className="text-xs font-bold text-white truncate" title={item.image_name}>{item.image_name}</h5>
+                              {getScoreBadge(item.indicator_score || 0)}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -1143,7 +1161,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
               {/* =================================================== */}
               {activeOption === 'storage' && (
                 <div className="space-y-6">
-                  
+
                   {/* KPI Cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/30 space-y-1">
@@ -1192,19 +1210,19 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                         storageStats.files
                           .filter(f => !searchQuery || f.filename?.toLowerCase().includes(searchQuery.toLowerCase()) || f.category?.toLowerCase().includes(searchQuery.toLowerCase()))
                           .map((file, idx) => (
-                          <div key={idx} className="p-3 flex items-center justify-between hover:bg-purple-900/20 transition">
-                            <div className="flex items-center space-x-2.5 truncate">
-                              <FolderOpen className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                              <span className="font-sans text-white truncate">{file.filename}</span>
+                            <div key={idx} className="p-3 flex items-center justify-between hover:bg-purple-900/20 transition">
+                              <div className="flex items-center space-x-2.5 truncate">
+                                <FolderOpen className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                                <span className="font-sans text-white truncate">{file.filename}</span>
+                              </div>
+                              <div className="flex items-center space-x-3 flex-shrink-0">
+                                <span className="text-purple-300">{(file.size_bytes / 1024).toFixed(1)} KB</span>
+                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-purple-900/60 text-purple-300 border border-purple-500/30">
+                                  {file.category}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-3 flex-shrink-0">
-                              <span className="text-purple-300">{(file.size_bytes / 1024).toFixed(1)} KB</span>
-                              <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-purple-900/60 text-purple-300 border border-purple-500/30">
-                                {file.category}
-                              </span>
-                            </div>
-                          </div>
-                        ))
+                          ))
                       ) : (
                         <div className="p-6 text-center text-purple-400 font-sans text-xs">
                           No files stored yet.
@@ -1348,11 +1366,11 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       {/* LEAD EXAMINER PROFILE DETAILS MODAL */}
       {/* ======================================================== */}
       {isProfileModalOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => setIsProfileModalOpen(false)}
         >
-          <div 
+          <div
             className="w-full max-w-lg bg-slate-950/95 border border-purple-500/40 rounded-3xl shadow-[0_24px_70px_rgba(0,0,0,0.9),0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl p-6 sm:p-8 relative overflow-hidden text-white font-sans space-y-6"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1389,7 +1407,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                     Active Session
                   </span>
                 </div>
-                
+
                 <h3 className="text-xl font-extrabold text-white tracking-tight">
                   {currentUser?.full_name || 'Dr. Elena Vance'}
                 </h3>

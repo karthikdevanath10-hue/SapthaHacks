@@ -1,5 +1,6 @@
 import logging
 import os
+import mimetypes
 import time
 import uuid
 import shutil
@@ -206,7 +207,8 @@ async def analyze_multimodal_media(
 
         modality = detect_modality(file.filename, override=modality)
         filename = safe_original_name(file.filename)
-        filepath = os.path.join(settings.UPLOAD_DIR, storage_filename(ext))
+        clean_prefix = investigation_id.replace("-", "")[:8].lower()
+        filepath = os.path.join(settings.UPLOAD_DIR, f"{clean_prefix}_{filename}")
 
         with open(filepath, "wb") as buffer:
             while True:
@@ -402,6 +404,54 @@ async def download_report(investigation_id: str):
         media_type="application/pdf",
         filename=report_filename
     )
+
+@app.get("/api/media/{investigation_id}")
+async def get_investigation_media(investigation_id: str):
+    clean_id = investigation_id.replace("-", "").lower()
+    prefix = clean_id[:8]
+    
+    # 1. Search UPLOAD_DIR for files starting with investigation_id prefix or containing it
+    if os.path.exists(settings.UPLOAD_DIR):
+        for fname in os.listdir(settings.UPLOAD_DIR):
+            f_lower = fname.lower()
+            if not f_lower.startswith("."):
+                if f_lower.startswith(prefix) or prefix in f_lower:
+                    filepath = os.path.join(settings.UPLOAD_DIR, fname)
+                    mime_type, _ = mimetypes.guess_type(filepath)
+                    return FileResponse(filepath, media_type=mime_type or "application/octet-stream", filename=fname)
+
+    # 2. Check investigation details for image_name or hash
+    details = await supabase_service.get_investigation_details(investigation_id)
+    if details:
+        image_name = details.get("image_name", "")
+        image_hash = details.get("image_hash", "")
+        if os.path.exists(settings.UPLOAD_DIR):
+            for fname in os.listdir(settings.UPLOAD_DIR):
+                f_lower = fname.lower()
+                if not f_lower.startswith("."):
+                    if (image_name and image_name.lower() in f_lower) or (image_hash and image_hash[:16].lower() in f_lower):
+                        filepath = os.path.join(settings.UPLOAD_DIR, fname)
+                        mime_type, _ = mimetypes.guess_type(filepath)
+                        return FileResponse(filepath, media_type=mime_type or "application/octet-stream", filename=fname)
+
+        # 3. Check local Downloads/Desktop fallback if running on developer machine
+        if image_name:
+            for search_dir in [os.path.expanduser("~/Downloads"), os.path.expanduser("~/Desktop"), os.path.expanduser("~/Pictures")]:
+                local_path = os.path.join(search_dir, image_name)
+                if os.path.exists(local_path):
+                    mime_type, _ = mimetypes.guess_type(local_path)
+                    return FileResponse(local_path, media_type=mime_type or "application/octet-stream", filename=image_name)
+
+    raise HTTPException(status_code=404, detail="Media file not found for this investigation")
+
+@app.get("/api/uploads/{filename}")
+async def get_uploaded_file(filename: str):
+    safe_name = os.path.basename(filename)
+    filepath = os.path.join(settings.UPLOAD_DIR, safe_name)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+    mime_type, _ = mimetypes.guess_type(filepath)
+    return FileResponse(filepath, media_type=mime_type or "application/octet-stream", filename=safe_name)
 
 @app.get("/api/storage/stats")
 async def get_storage_stats():

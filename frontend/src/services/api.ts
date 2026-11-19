@@ -74,6 +74,10 @@ export const apiService = {
     return `${API_BASE_URL}/reports/${investigationId}/download`;
   },
 
+  getMediaUrl(investigationId: string): string {
+    return `${API_BASE_URL}/media/${investigationId}`;
+  },
+
   async searchMcpWebPresence(query: string, modality: string = 'image'): Promise<any> {
     const res = await apiClient.post('/mcp/search', { query, modality });
     return res.data;

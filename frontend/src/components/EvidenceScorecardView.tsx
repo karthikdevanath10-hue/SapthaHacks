@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   ShieldAlert, ShieldCheck, AlertTriangle, Info, HelpCircle, 
   Download, FileCheck, Layers, Sparkles, CheckCircle2, ChevronDown, ChevronUp,
-  Camera, Cpu, MessageSquare, Video, Mic, FileText, ArrowRight
+  Camera, Cpu, MessageSquare, Video, Mic, FileText, ArrowRight, Maximize2, X
 } from 'lucide-react';
 import { FullAnalysisResponse, EvidenceItem } from '../types';
 import { apiService } from '../services/api';
@@ -10,11 +10,16 @@ import { apiService } from '../services/api';
 interface ScorecardProps {
   analysis: FullAnalysisResponse;
   onDownloadReport?: () => void;
+  previewUrl?: string | null;
 }
 
-export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDownloadReport }) => {
+export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDownloadReport, previewUrl }) => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [imgFailed, setImgFailed] = useState<boolean>(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+
+  const mediaUrl = previewUrl || apiService.getMediaUrl(analysis.investigation_id);
 
   const toggleExpand = (id: string) => {
     setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
@@ -253,6 +258,85 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
             </div>
           </div>
 
+          {/* ======================================================== */}
+          {/* UPLOADED EVIDENCE MEDIA PREVIEW (Left of Suspicious Indicator Score) */}
+          {/* ======================================================== */}
+          <div className="flex-shrink-0 flex flex-col items-center justify-center self-center">
+            <div className="relative group w-48 sm:w-56 h-48 sm:h-52 rounded-2xl border border-purple-500/40 bg-slate-950/90 shadow-[0_0_25px_rgba(168,85,247,0.25)] overflow-hidden flex items-center justify-center p-2 backdrop-blur-xl hover:border-purple-400 transition-all duration-300">
+              
+              {/* Top Status Badge */}
+              <div className="absolute top-2 left-2 z-20 px-2 py-0.5 rounded-md bg-slate-950/85 border border-purple-500/40 text-[10px] font-mono font-bold text-purple-300 uppercase tracking-wider flex items-center space-x-1 shadow-sm backdrop-blur-sm pointer-events-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Uploaded Media</span>
+              </div>
+
+              {/* Lightbox Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(true)}
+                className="absolute top-2 right-2 z-20 p-1.5 rounded-lg bg-purple-950/80 border border-purple-400/40 text-purple-200 hover:text-white hover:bg-purple-900 transition shadow-sm cursor-pointer opacity-80 group-hover:opacity-100"
+                title="Inspect Full Media"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Modality Dynamic Viewer */}
+              {analysis.modality === 'video' ? (
+                <video
+                  src={mediaUrl}
+                  controls
+                  className="w-full h-full object-contain rounded-xl bg-black"
+                />
+              ) : analysis.modality === 'audio' ? (
+                <div className="flex flex-col items-center justify-center space-y-2 p-2 text-center w-full">
+                  <div className="p-3 rounded-full bg-purple-950/70 border border-purple-500/40 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                    <Mic className="w-6 h-6 text-purple-300" />
+                  </div>
+                  <span className="text-[11px] font-mono text-purple-200 truncate max-w-[140px]">
+                    {analysis.image_name}
+                  </span>
+                  <audio controls src={mediaUrl} className="w-full h-8 scale-90" />
+                </div>
+              ) : analysis.modality === 'text' ? (
+                <div className="flex flex-col items-center justify-center p-3 text-center space-y-2">
+                  <FileText className="w-8 h-8 text-purple-400" />
+                  <span className="text-[11px] font-mono text-purple-200 line-clamp-3">
+                    {analysis.image_name}
+                  </span>
+                </div>
+              ) : (
+                /* Image Modality */
+                !imgFailed ? (
+                  <img
+                    src={mediaUrl}
+                    alt={analysis.image_name}
+                    onError={() => setImgFailed(true)}
+                    onClick={() => setIsLightboxOpen(true)}
+                    className="w-full h-full object-contain rounded-xl cursor-pointer hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-3 text-center space-y-2">
+                    <Camera className="w-8 h-8 text-purple-400/80" />
+                    <span className="text-[11px] font-mono text-purple-300/80 line-clamp-2">
+                      {analysis.image_name}
+                    </span>
+                    <span className="text-[10px] text-purple-400/60 font-sans">
+                      Evidence Recorded
+                    </span>
+                  </div>
+                )
+              )}
+
+              {/* Bottom Expand Label on Hover */}
+              <div 
+                onClick={() => setIsLightboxOpen(true)}
+                className="absolute inset-x-0 bottom-0 py-1 bg-gradient-to-t from-slate-950/95 via-slate-950/70 to-transparent text-[10px] font-mono text-purple-300/90 text-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+              >
+                Click to inspect
+              </div>
+            </div>
+          </div>
+
           {/* Anomaly Gauge & PDF Export Button */}
           <div className="bg-slate-900/90 p-6 rounded-2xl border border-purple-500/30 flex flex-col items-center justify-center min-w-[240px] text-center shadow-[0_0_30px_rgba(168,85,247,0.15)] backdrop-blur-xl">
             <span className="text-[11px] font-mono uppercase tracking-wider text-purple-300/80 mb-1">
@@ -453,6 +537,62 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
           TruthLens is an investigative diagnostic system designed to support forensic examiners. All indicators serve as explainable signals requiring analyst corroboration before presentation in legal proceedings.
         </p>
       </div>
+
+      {/* ======================================================== */}
+      {/* 4. LIGHTBOX / FULLSCREEN MEDIA MODAL */}
+      {/* ======================================================== */}
+      {isLightboxOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <div 
+            className="relative max-w-4xl w-full max-h-[90vh] bg-slate-950 border border-purple-500/40 rounded-3xl p-4 sm:p-6 shadow-[0_0_60px_rgba(168,85,247,0.35)] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between pb-3 border-b border-purple-500/30 mb-4">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold uppercase">
+                  {analysis.modality}
+                </span>
+                <span className="text-sm font-semibold text-white truncate max-w-md">
+                  {analysis.image_name}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsLightboxOpen(false)}
+                className="p-1.5 rounded-xl border border-purple-500/40 bg-purple-950/80 text-purple-300 hover:text-white hover:bg-purple-900 transition cursor-pointer"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto flex items-center justify-center w-full max-h-[65vh]">
+              {analysis.modality === 'video' ? (
+                <video src={mediaUrl} controls autoPlay className="max-h-[65vh] max-w-full rounded-2xl shadow-lg" />
+              ) : analysis.modality === 'audio' ? (
+                <div className="p-8 text-center space-y-4">
+                  <Mic className="w-16 h-16 text-purple-400 mx-auto" />
+                  <p className="text-white font-mono">{analysis.image_name}</p>
+                  <audio controls src={mediaUrl} autoPlay className="w-full max-w-md" />
+                </div>
+              ) : (
+                <img
+                  src={mediaUrl}
+                  alt={analysis.image_name}
+                  className="max-h-[65vh] max-w-full object-contain rounded-2xl shadow-2xl"
+                />
+              )}
+            </div>
+
+            <div className="w-full flex items-center justify-between pt-3 border-t border-purple-500/30 mt-4 text-xs font-mono text-purple-300/70">
+              <span>SHA-256: {analysis.image_hash.slice(0, 24)}...</span>
+              <span>Dimensions: {analysis.metadata.dimensions.width}×{analysis.metadata.dimensions.height}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

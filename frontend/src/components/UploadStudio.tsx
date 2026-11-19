@@ -764,7 +764,7 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({
 
           {/* Active Diagnostic Views */}
           {activeTab === 'scorecard' && (
-            <EvidenceScorecardView analysis={analysisResult} />
+            <EvidenceScorecardView analysis={analysisResult} previewUrl={previewUrl} />
           )}
 
           {activeTab === 'diagnostics' && (
