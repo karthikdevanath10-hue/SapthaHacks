@@ -842,7 +842,7 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
             </div>
             
             <span className="text-[11px] font-medium text-purple-300/80 italic">
-              {displayIndicatorScore > 50 ? 'High Anomaly Signals' : displayIndicatorScore > 20 ? 'Moderate Anomaly Signals' : 'Clean & Natural Signals'}
+              indicator only - human review required
             </span>
 
             <button
