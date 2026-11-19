@@ -649,6 +649,26 @@ interface VaultFileItem {
     }
   };
 
+  const [isExportingAuditLogs, setIsExportingAuditLogs] = useState(false);
+
+  const handleExportAuditLogs = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setIsExportingAuditLogs(true);
+    try {
+      const blob = await apiService.exportAuditLogsPdf(
+        investigations, 
+        currentUser?.full_name || currentUser?.email || 'Lead Forensic Examiner'
+      );
+      const filename = `TruthLens_Audit_Ledger_${new Date().toISOString().slice(0, 10)}.pdf`;
+      apiService.downloadBlob(blob, filename);
+    } catch (err) {
+      console.error('Failed to export audit logs PDF:', err);
+      window.open(apiService.getAuditLogsPdfUrl(), '_blank');
+    } finally {
+      setIsExportingAuditLogs(false);
+    }
+  };
+
   const handleRunMcpSearch = async () => {
     if (!mcpQuery.trim()) return;
     setMcpLoading(true);
@@ -1581,14 +1601,25 @@ interface VaultFileItem {
               {/* =================================================== */}
               {activeOption === 'audit' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
                       <h3 className="text-base font-bold text-white">Forensic Audit Trail & Chain of Custody</h3>
                       <p className="text-xs text-purple-300/80">Digital evidence custody registry with cryptographic SHA-256 validation.</p>
                     </div>
-                    <span className="text-xs font-mono text-purple-400">
-                      {investigations.length} Cases Recorded
-                    </span>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs font-mono text-purple-400 hidden sm:inline">
+                        {investigations.length} Cases Recorded
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleExportAuditLogs}
+                        disabled={isExportingAuditLogs}
+                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-500 hover:from-purple-500 hover:to-indigo-500 border border-purple-400/40 text-white text-xs font-semibold flex items-center space-x-1.5 shadow-[0_0_20px_rgba(168,85,247,0.35)] transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>{isExportingAuditLogs ? 'Exporting PDF...' : 'Export Audit Logs (PDF)'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="border border-purple-500/30 rounded-2xl overflow-hidden bg-slate-950/60 shadow-lg">

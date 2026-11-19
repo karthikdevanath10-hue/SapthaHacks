@@ -74,6 +74,33 @@ export const apiService = {
     return `${API_BASE_URL}/reports/${investigationId}/download`;
   },
 
+  getAuditLogsPdfUrl(): string {
+    return `${API_BASE_URL}/reports/audit-logs/export-pdf`;
+  },
+
+  async exportAuditLogsPdf(investigations?: any[], examinerName?: string): Promise<Blob> {
+    const res = await apiClient.post('/reports/audit-logs/export-pdf', {
+      investigations,
+      examiner_name: examinerName || 'Lead Forensic Examiner'
+    }, {
+      responseType: 'blob'
+    });
+    return res.data;
+  },
+
+  downloadBlob(blob: Blob, filename: string) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 100);
+  },
+
   getMediaUrl(investigationId: string): string {
     return `${API_BASE_URL}/media/${investigationId}`;
   },

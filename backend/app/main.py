@@ -41,7 +41,7 @@ from app.forensic.cross_verification import (
     cross_verify_generic_modality_claim
 )
 from app.forensic.scorecard_engine import synthesize_evidence_scorecard
-from app.forensic.report_engine import generate_pdf_report
+from app.forensic.report_engine import generate_pdf_report, generate_audit_logs_pdf
 from app.forensic.explanation_engine import explain_findings
 from app.forensic.correlation_engine import correlate_evidence
 from app.services.supabase_service import supabase_service
@@ -440,6 +440,41 @@ async def download_report(investigation_id: str):
         media_type="application/pdf",
         filename=report_filename
     )
+
+@app.get("/api/reports/audit-logs/export-pdf")
+@app.post("/api/reports/audit-logs/export-pdf")
+async def export_audit_logs_pdf(
+    request: Request,
+    user_id: Optional[str] = None
+):
+    try:
+        body = {}
+        if request.method == "POST":
+            try:
+                body = await request.json()
+            except Exception:
+                body = {}
+
+        investigations = body.get("investigations") if isinstance(body, dict) else None
+        examiner_name = (body.get("examiner_name") if isinstance(body, dict) else None) or "Lead Forensic Examiner"
+
+        if not investigations:
+            # Query investigations from Supabase
+            investigations = await supabase_service.list_investigations(user_id=user_id)
+
+        pdf_path = generate_audit_logs_pdf(
+            investigations=investigations or [],
+            examiner_name=examiner_name
+        )
+
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            filename=os.path.basename(pdf_path)
+        )
+    except Exception as e:
+        logging.error(f"Failed to generate audit logs PDF: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate audit logs PDF: {str(e)}")
 
 @app.get("/api/media/{investigation_id}")
 async def get_investigation_media(investigation_id: str):

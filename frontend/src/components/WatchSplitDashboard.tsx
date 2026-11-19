@@ -139,6 +139,26 @@ export const WatchSplitDashboard: React.FC<WatchSplitDashboardProps> = ({
     window.open(apiService.getReportDownloadUrl(id), '_blank');
   };
 
+  const [isExportingAuditPdf, setIsExportingAuditPdf] = useState(false);
+
+  const handleExportAuditLogs = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setIsExportingAuditPdf(true);
+    try {
+      const blob = await apiService.exportAuditLogsPdf(
+        investigations,
+        'Lead Forensic Examiner'
+      );
+      const filename = `TruthLens_Audit_Ledger_${new Date().toISOString().slice(0, 10)}.pdf`;
+      apiService.downloadBlob(blob, filename);
+    } catch (err) {
+      console.error('Failed to export audit logs PDF:', err);
+      window.open(apiService.getAuditLogsPdfUrl(), '_blank');
+    } finally {
+      setIsExportingAuditPdf(false);
+    }
+  };
+
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm('Are you sure you want to delete this forensic case record?')) return;
@@ -563,8 +583,17 @@ export const WatchSplitDashboard: React.FC<WatchSplitDashboardProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center space-x-2 text-xs font-mono text-slate-500">
+                <div className="flex items-center space-x-2.5 text-xs font-mono text-slate-500">
                   <span>Total Records: <strong className="text-slate-900">{investigations.length}</strong></span>
+                  <button
+                    type="button"
+                    onClick={handleExportAuditLogs}
+                    disabled={isExportingAuditPdf}
+                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-sans font-semibold text-xs flex items-center space-x-1.5 transition shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{isExportingAuditPdf ? 'Exporting...' : 'Export Audit Logs (PDF)'}</span>
+                  </button>
                 </div>
               </div>
 
