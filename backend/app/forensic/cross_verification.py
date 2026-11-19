@@ -103,6 +103,9 @@ async def cross_verify_caption_and_image(
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=payload)
+            if response.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
+                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
+                response = await client.post(fallback_url, json=payload)
 
         if response.status_code == 200:
             res_json = response.json()
@@ -222,6 +225,9 @@ RULES:
         }
         async with httpx.AsyncClient(timeout=25.0) as client:
             response = await client.post(url, json=payload)
+            if response.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
+                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
+                response = await client.post(fallback_url, json=payload)
         if response.status_code == 200:
             parsed = json.loads(response.json()["candidates"][0]["content"]["parts"][0]["text"].strip())
             verdict = parsed.get("consistency_verdict", "Consistent")

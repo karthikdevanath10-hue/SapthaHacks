@@ -51,7 +51,7 @@ async def analyze_with_gemini(filepath: str) -> Tuple[AIVisualResult, List[Evide
         elif ext in [".webp"]:
             mime_type = "image/webp"
 
-        # Request to Gemini 1.5 Flash via REST endpoint
+        # Request to Gemini 3.6 Flash with automatic resilience fallback
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={api_key}"
         payload = {
             "contents": [
@@ -76,6 +76,9 @@ async def analyze_with_gemini(filepath: str) -> Tuple[AIVisualResult, List[Evide
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=payload)
+            if response.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
+                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
+                response = await client.post(fallback_url, json=payload)
             
         if response.status_code != 200:
             return _generate_fallback_ai_analysis(filepath, is_live=False, error_msg=f"Gemini API returned HTTP {response.status_code}")

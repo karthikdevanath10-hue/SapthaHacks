@@ -174,6 +174,9 @@ Return STRICTLY valid JSON:
 
         async with httpx.AsyncClient(timeout=35.0) as client:
             res = await client.post(url, json=payload)
+            if res.status_code in [503, 404] and getattr(settings, "GEMINI_FALLBACK_MODEL", None):
+                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_FALLBACK_MODEL}:generateContent?key={api_key}"
+                res = await client.post(fallback_url, json=payload)
 
         if res.status_code == 200:
             parsed = json.loads(res.json()["candidates"][0]["content"]["parts"][0]["text"].strip())
