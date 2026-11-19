@@ -1135,14 +1135,6 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
           </div>
 
-          {/* Footer Status Line */}
-          <div className="relative z-10 pt-3 mt-3 border-t border-purple-500/20 flex flex-col sm:flex-row items-center justify-between text-[11px] text-purple-300/70 gap-2 flex-shrink-0">
-            <div className="flex items-center space-x-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>FastAPI Backend • Gemini 3.6 • Supabase PostgreSQL</span>
-            </div>
-            <span>TruthLens Digital Forensics System</span>
-          </div>
 
         </div>
 
