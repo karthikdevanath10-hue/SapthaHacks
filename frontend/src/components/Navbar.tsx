@@ -58,27 +58,27 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Navigation Tabs */}
         <nav className="flex items-center space-x-1 sm:space-x-2 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
           <button
-            onClick={() => setCurrentTab('studio')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 ${
-              currentTab === 'studio' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-            }`}
-          >
-            <UploadCloud className="w-3.5 h-3.5" />
-            <span>Investigate</span>
-          </button>
-
-          <button
             onClick={() => setCurrentTab('dashboard')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 cursor-pointer ${
               currentTab === 'dashboard' 
                 ? 'bg-white text-blue-600 shadow-sm' 
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             <LayoutDashboard className="w-3.5 h-3.5" />
-            <span>Audit Trail</span>
+            <span>Watch Dashboard</span>
+          </button>
+
+          <button
+            onClick={() => setCurrentTab('studio')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 cursor-pointer ${
+              currentTab === 'studio' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span>Classic Studio</span>
           </button>
         </nav>
 
