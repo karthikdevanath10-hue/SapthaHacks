@@ -57,7 +57,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-cyber-950 flex flex-col text-slate-100 selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800 selection:bg-blue-600 selection:text-white">
       
       {/* Top Navigation */}
       <Navbar
@@ -103,7 +103,7 @@ export function App() {
           <div className="space-y-6 pb-12">
             <button
               onClick={() => setCurrentTab('dashboard')}
-              className="px-3 py-1.5 rounded-lg border border-slate-700 bg-cyber-900 text-slate-300 hover:text-white text-xs font-semibold flex items-center space-x-2 transition"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold flex items-center space-x-2 shadow-sm transition"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Case Dashboard</span>
@@ -122,15 +122,15 @@ export function App() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-cyber-950/90 py-8 mt-12 text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white py-8 mt-12 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-2">
-            <Eye className="w-4 h-4 text-cyan-400" />
-            <span className="font-bold text-slate-300 tracking-wider">TRUTHLENS</span>
+            <Eye className="w-4 h-4 text-blue-600" />
+            <span className="font-bold text-slate-900 tracking-wider">TRUTHLENS</span>
             <span>• Problem Statement PS04 Digital Forensics System</span>
           </div>
 
-          <div className="flex items-center space-x-4 text-[11px] font-mono">
+          <div className="flex items-center space-x-4 text-[11px] font-mono text-slate-500">
             <span>FastAPI + OpenCV</span>
             <span>•</span>
             <span>Google Gemini</span>
