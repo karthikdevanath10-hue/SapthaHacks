@@ -129,6 +129,7 @@ export interface FullAnalysisResponse {
   modality: MediaModality;
   image_name: string;
   image_hash: string;
+  media_preview?: string | null;
   assessment: string;
   indicator_score: number;
   summary: string;

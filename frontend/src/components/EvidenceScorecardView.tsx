@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldAlert, ShieldCheck, AlertTriangle, Info, HelpCircle, 
   Download, FileCheck, Layers, Sparkles, CheckCircle2, ChevronDown, ChevronUp,
@@ -16,10 +16,57 @@ interface ScorecardProps {
 export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDownloadReport, previewUrl }) => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+
+  const resolveMediaUrl = () => {
+    const cached = typeof window !== 'undefined' 
+      ? (sessionStorage.getItem(`media_${analysis.investigation_id}`) || sessionStorage.getItem(`media_hash_${analysis.image_hash}`)) 
+      : null;
+
+    if (previewUrl && !previewUrl.includes('/api/media/')) {
+      return previewUrl;
+    }
+    if (analysis.media_preview) {
+      return analysis.media_preview;
+    }
+    if ((analysis.metadata as any)?.media_preview) {
+      return (analysis.metadata as any).media_preview;
+    }
+    if (cached) {
+      return cached;
+    }
+    return previewUrl || apiService.getMediaUrl(analysis.investigation_id);
+  };
+
+  const [currentMediaSrc, setCurrentMediaSrc] = useState<string>(resolveMediaUrl);
   const [imgFailed, setImgFailed] = useState<boolean>(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
 
-  const mediaUrl = previewUrl || apiService.getMediaUrl(analysis.investigation_id);
+  useEffect(() => {
+    const next = resolveMediaUrl();
+    setCurrentMediaSrc(next);
+    setImgFailed(false);
+  }, [analysis, previewUrl]);
+
+  const handleImageError = () => {
+    const cached = typeof window !== 'undefined' 
+      ? (sessionStorage.getItem(`media_${analysis.investigation_id}`) || sessionStorage.getItem(`media_hash_${analysis.image_hash}`)) 
+      : null;
+
+    if (currentMediaSrc && currentMediaSrc.includes('/api/media/')) {
+      const fallback = analysis.media_preview || (analysis.metadata as any)?.media_preview || cached;
+      if (fallback && fallback !== currentMediaSrc) {
+        setCurrentMediaSrc(fallback);
+        return;
+      }
+    } else if (currentMediaSrc && !currentMediaSrc.startsWith('data:') && !currentMediaSrc.startsWith('blob:')) {
+      const apiFallback = apiService.getMediaUrl(analysis.investigation_id);
+      if (apiFallback !== currentMediaSrc) {
+        setCurrentMediaSrc(apiFallback);
+        return;
+      }
+    }
+    setImgFailed(true);
+  };
 
   const toggleExpand = (id: string) => {
     setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
@@ -283,7 +330,7 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
               {/* Modality Dynamic Viewer */}
               {analysis.modality === 'video' ? (
                 <video
-                  src={mediaUrl}
+                  src={currentMediaSrc}
                   controls
                   className="w-full h-full object-contain rounded-xl bg-black"
                 />
@@ -295,7 +342,7 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
                   <span className="text-[11px] font-mono text-purple-200 truncate max-w-[140px]">
                     {analysis.image_name}
                   </span>
-                  <audio controls src={mediaUrl} className="w-full h-8 scale-90" />
+                  <audio controls src={currentMediaSrc} className="w-full h-8 scale-90" />
                 </div>
               ) : analysis.modality === 'text' ? (
                 <div className="flex flex-col items-center justify-center p-3 text-center space-y-2">
@@ -308,9 +355,9 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
                 /* Image Modality */
                 !imgFailed ? (
                   <img
-                    src={mediaUrl}
+                    src={currentMediaSrc}
                     alt={analysis.image_name}
-                    onError={() => setImgFailed(true)}
+                    onError={handleImageError}
                     onClick={() => setIsLightboxOpen(true)}
                     className="w-full h-full object-contain rounded-xl cursor-pointer hover:scale-105 transition-transform duration-300"
                   />
@@ -570,16 +617,16 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
 
             <div className="flex-1 overflow-auto flex items-center justify-center w-full max-h-[65vh]">
               {analysis.modality === 'video' ? (
-                <video src={mediaUrl} controls autoPlay className="max-h-[65vh] max-w-full rounded-2xl shadow-lg" />
+                <video src={currentMediaSrc} controls autoPlay className="max-h-[65vh] max-w-full rounded-2xl shadow-lg" />
               ) : analysis.modality === 'audio' ? (
                 <div className="p-8 text-center space-y-4">
                   <Mic className="w-16 h-16 text-purple-400 mx-auto" />
                   <p className="text-white font-mono">{analysis.image_name}</p>
-                  <audio controls src={mediaUrl} autoPlay className="w-full max-w-md" />
+                  <audio controls src={currentMediaSrc} autoPlay className="w-full max-w-md" />
                 </div>
               ) : (
                 <img
-                  src={mediaUrl}
+                  src={currentMediaSrc}
                   alt={analysis.image_name}
                   className="max-h-[65vh] max-w-full object-contain rounded-2xl shadow-2xl"
                 />

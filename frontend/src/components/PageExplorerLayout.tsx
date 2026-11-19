@@ -240,11 +240,22 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       if (selectedFile) {
         try {
           localBlobUrl = URL.createObjectURL(selectedFile);
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const b64 = reader.result as string;
+              sessionStorage.setItem(`media_${res.investigation_id}`, b64);
+              if (res.image_hash) {
+                sessionStorage.setItem(`media_hash_${res.image_hash}`, b64);
+              }
+            } catch (e) {}
+          };
+          reader.readAsDataURL(selectedFile);
         } catch (e) {
           console.error(e);
         }
       }
-      onInspectResult(res, localBlobUrl);
+      onInspectResult(res, res.media_preview || localBlobUrl);
     } catch (err: any) {
       const detail = err.response?.data?.detail || err.message || 'Forensic examination failed';
       setAnalysisError(detail);

@@ -38,7 +38,8 @@ export function App() {
   const handleOpenInvestigationDetails = async (id: string) => {
     try {
       const details = await apiService.getInvestigationDetails(id);
-      setInspectingPreviewUrl(apiService.getMediaUrl(id));
+      const cached = typeof window !== 'undefined' ? (sessionStorage.getItem(`media_${id}`) || sessionStorage.getItem(`media_hash_${details.image_hash}`)) : null;
+      setInspectingPreviewUrl(details.media_preview || cached || apiService.getMediaUrl(id));
       setInspectingAnalysis(details);
     } catch (e) {
       alert('Could not retrieve investigation details.');

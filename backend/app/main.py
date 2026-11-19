@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.core.config import settings
 from app.core.security import (
@@ -162,6 +162,38 @@ def _run(name: str, model: str, version: str, status: str, findings: int, score_
     )
 
 
+def generate_media_preview(filepath: str, modality: str) -> Optional[str]:
+    try:
+        if modality == "image":
+            from PIL import Image
+            import io
+            import base64
+            with Image.open(filepath) as img:
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                img.thumbnail((500, 500), Image.Resampling.LANCZOS)
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=82, optimize=True)
+                b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+                return f"data:image/jpeg;base64,{b64}"
+        elif modality == "video":
+            import cv2
+            import base64
+            cap = cv2.VideoCapture(filepath)
+            ret, frame = cap.read()
+            cap.release()
+            if ret:
+                h, w = frame.shape[:2]
+                scale = min(500 / max(w, 1), 500 / max(h, 1), 1.0)
+                small = cv2.resize(frame, (int(w * scale), int(h * scale)))
+                _, enc = cv2.imencode('.jpg', small, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                b64 = base64.b64encode(enc.tobytes()).decode('utf-8')
+                return f"data:image/jpeg;base64,{b64}"
+    except Exception as e:
+        logging.warning(f"Failed to generate media preview: {e}")
+    return None
+
+
 @app.post("/api/analyze", response_model=FullAnalysisResponse)
 async def analyze_multimodal_media(
     request: Request,
@@ -234,6 +266,9 @@ async def analyze_multimodal_media(
     # 1. Base Metadata & SHA-256 Extraction (Instant local hash)
     metadata_res, meta_evidence = extract_metadata(filepath, file.filename if file else filename)
     all_evidence.extend(meta_evidence)
+
+    # 1.1 Generate Lightweight Media Preview (Safe for cloud & serverless)
+    media_preview = generate_media_preview(filepath, modality)
 
     # 2. Modality-Specific Diagnostic Execution with Parallel Optimization
     if modality == "video":
@@ -340,6 +375,7 @@ async def analyze_multimodal_media(
         modality=modality,
         image_name=file.filename if file else filename,
         image_hash=metadata_res.sha256_hash,
+        media_preview=media_preview,
         assessment=assessment,
         indicator_score=indicator_score,
         summary=summary,
@@ -420,9 +456,21 @@ async def get_investigation_media(investigation_id: str):
                     mime_type, _ = mimetypes.guess_type(filepath)
                     return FileResponse(filepath, media_type=mime_type or "application/octet-stream", filename=fname)
 
-    # 2. Check investigation details for image_name or hash
+    # 2. Check investigation details for media_preview, image_name or hash
     details = await supabase_service.get_investigation_details(investigation_id)
     if details:
+        # 2.1 Serve stored preview from Supabase (Cloud & Vercel serverless friendly)
+        media_preview = details.get("media_preview")
+        if media_preview and media_preview.startswith("data:image"):
+            try:
+                import base64
+                header, b64data = media_preview.split(",", 1)
+                mime = header.split(";")[0].replace("data:", "")
+                data = base64.b64decode(b64data)
+                return Response(content=data, media_type=mime)
+            except Exception as e:
+                logging.warning(f"Failed to serve base64 media preview: {e}")
+
         image_name = details.get("image_name", "")
         image_hash = details.get("image_hash", "")
         if os.path.exists(settings.UPLOAD_DIR):

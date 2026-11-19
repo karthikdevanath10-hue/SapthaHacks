@@ -186,6 +186,7 @@ class FullAnalysisResponse(BaseModel):
     modality: str = "image"  # "image", "video", "audio", "text"
     image_name: str
     image_hash: str
+    media_preview: Optional[str] = None
     assessment: str
     indicator_score: int
     summary: str
