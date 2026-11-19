@@ -19,6 +19,8 @@ interface UploadStudioProps {
   currentUser: UserProfile | null;
   onAnalysisComplete?: (result: FullAnalysisResponse) => void;
   onOpenDashboardDrawer?: () => void;
+  selectedModality?: MediaModality;
+  onSelectModality?: (modality: MediaModality) => void;
 }
 
 const MODALITY_STEPS: Record<MediaModality, string[]> = {
@@ -59,10 +61,24 @@ const MODALITY_STEPS: Record<MediaModality, string[]> = {
 export const UploadStudio: React.FC<UploadStudioProps> = ({ 
   currentUser, 
   onAnalysisComplete,
-  onOpenDashboardDrawer 
+  onOpenDashboardDrawer,
+  selectedModality: externalModality,
+  onSelectModality
 }) => {
-  const [selectedModality, setSelectedModality] = useState<MediaModality>('image');
+  const [selectedModality, setSelectedModality] = useState<MediaModality>(externalModality || 'image');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Sync when external modality changes (e.g. from sliding dashboard)
+  React.useEffect(() => {
+    if (externalModality && externalModality !== selectedModality) {
+      setSelectedModality(externalModality);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setDirectText('');
+      setAnalysisResult(null);
+      setErrorMsg(null);
+    }
+  }, [externalModality]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [directText, setDirectText] = useState<string>('');
   const [caption, setCaption] = useState<string>('');
@@ -161,6 +177,9 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({
 
   const handleModalityChange = (mod: MediaModality) => {
     setSelectedModality(mod);
+    if (onSelectModality) {
+      onSelectModality(mod);
+    }
     setSelectedFile(null);
     setPreviewUrl(null);
     setDirectText('');

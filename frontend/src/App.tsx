@@ -6,7 +6,7 @@ import { DashboardView } from './components/DashboardView';
 import { AuthModal } from './components/AuthModal';
 import { EvidenceScorecardView } from './components/EvidenceScorecardView';
 import { SlidingDashboardDrawer } from './components/SlidingDashboardDrawer';
-import { UserProfile, FullAnalysisResponse } from './types';
+import { UserProfile, FullAnalysisResponse, MediaModality } from './types';
 import { authService } from './services/supabase';
 import { apiService } from './services/api';
 import { Eye, Shield, Terminal, ArrowLeft, PanelLeftOpen } from 'lucide-react';
@@ -16,6 +16,7 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isDashboardDrawerOpen, setIsDashboardDrawerOpen] = useState(false);
+  const [selectedModality, setSelectedModality] = useState<MediaModality>('image');
   const [inspectingAnalysis, setInspectingAnalysis] = useState<FullAnalysisResponse | null>(null);
 
   const [apiStatus, setApiStatus] = useState({
@@ -108,6 +109,8 @@ export function App() {
               // Stay in studio view or set state
             }}
             onOpenDashboardDrawer={() => setIsDashboardDrawerOpen(true)}
+            selectedModality={selectedModality}
+            onSelectModality={setSelectedModality}
           />
         )}
 
@@ -115,7 +118,10 @@ export function App() {
         {currentTab === 'dashboard' && (
           <DashboardView
             onOpenInvestigation={handleOpenInvestigationDetails}
-            onNewInvestigation={() => setCurrentTab('studio')}
+            onNewInvestigation={(mod) => {
+              if (mod) setSelectedModality(mod);
+              setCurrentTab('studio');
+            }}
           />
         )}
 
@@ -140,7 +146,8 @@ export function App() {
         isOpen={isDashboardDrawerOpen}
         onClose={() => setIsDashboardDrawerOpen(false)}
         onOpenInvestigation={handleOpenInvestigationDetails}
-        onNewInvestigation={() => {
+        onNewInvestigation={(mod) => {
+          if (mod) setSelectedModality(mod);
           setInspectingAnalysis(null);
           setCurrentTab('studio');
           setIsDashboardDrawerOpen(false);
@@ -150,6 +157,8 @@ export function App() {
           setCurrentTab('dashboard');
           setIsDashboardDrawerOpen(false);
         }}
+        selectedModality={selectedModality}
+        onSelectModality={setSelectedModality}
       />
 
       {/* Auth Modal */}

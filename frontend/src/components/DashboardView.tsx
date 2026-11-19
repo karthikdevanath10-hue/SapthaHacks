@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, ShieldAlert, ShieldCheck, AlertTriangle, FileText, 
-  Download, Trash2, Eye, Plus, RefreshCw, Clock, ExternalLink 
+  Download, Trash2, Eye, Plus, RefreshCw, Clock, ExternalLink,
+  Image as ImageIcon, Video, Mic
 } from 'lucide-react';
-import { InvestigationSummary, FullAnalysisResponse } from '../types';
+import { InvestigationSummary, FullAnalysisResponse, MediaModality } from '../types';
 import { apiService } from '../services/api';
 
 interface DashboardViewProps {
   onOpenInvestigation: (id: string) => void;
-  onNewInvestigation: () => void;
+  onNewInvestigation: (modality?: MediaModality) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
@@ -18,6 +19,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [investigations, setInvestigations] = useState<InvestigationSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [selectedModality, setSelectedModality] = useState<'all' | MediaModality>('all');
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -52,16 +54,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     window.open(apiService.getReportDownloadUrl(id), '_blank');
   };
 
+  const detectModality = (name: string): MediaModality => {
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    if (['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext)) return 'video';
+    if (['mp3', 'wav', 'm4a', 'ogg', 'aac', 'flac'].includes(ext)) return 'audio';
+    if (['txt'].includes(ext)) return 'text';
+    return 'image';
+  };
+
+  const filteredInvestigations = investigations.filter(inv => {
+    if (selectedModality === 'all') return true;
+    return detectModality(inv.image_name) === selectedModality;
+  });
+
   // Metrics computation
-  const totalCases = investigations.length;
-  const flaggedCases = investigations.filter(i => 
+  const totalCases = filteredInvestigations.length;
+  const flaggedCases = filteredInvestigations.filter(i => 
     i.assessment.includes('Multiple suspicious') || i.assessment.includes('Some indicators')
   ).length;
-  const cleanCases = investigations.filter(i => 
+  const cleanCases = filteredInvestigations.filter(i => 
     i.assessment.includes('No significant')
   ).length;
   const avgScore = totalCases > 0 
-    ? Math.round(investigations.reduce((acc, curr) => acc + (curr.indicator_score || 0), 0) / totalCases)
+    ? Math.round(filteredInvestigations.reduce((acc, curr) => acc + (curr.indicator_score || 0), 0) / totalCases)
     : 0;
 
   return (
@@ -88,12 +103,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <RefreshCw className="w-4 h-4 text-slate-500" />
           </button>
           <button
-            onClick={onNewInvestigation}
+            onClick={() => onNewInvestigation(selectedModality === 'all' ? 'image' : selectedModality)}
             className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center space-x-1.5 shadow-sm shadow-blue-500/20 transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>New Investigation</span>
           </button>
+        </div>
+      </div>
+
+      {/* Primary Modality Options (Matching User Specification) */}
+      <div className="glass-panel p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center space-x-2">
+          <span className="text-xs font-bold text-slate-800">Forensic Modality Options:</span>
+          <span className="text-[11px] text-slate-500 font-mono">({filteredInvestigations.length} matching)</span>
+        </div>
+
+        <div className="flex items-center flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs">
+          <button
+            onClick={() => setSelectedModality('all')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+              selectedModality === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+            }`}
+          >
+            All Modalities
+          </button>
+          {[
+            { id: 'image', label: 'Image Forensics', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+            { id: 'video', label: 'Video Deepfake', icon: <Video className="w-3.5 h-3.5" /> },
+            { id: 'audio', label: 'Voice / Audio', icon: <Mic className="w-3.5 h-3.5" /> },
+            { id: 'text', label: 'Text & Narrative', icon: <FileText className="w-3.5 h-3.5" /> },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedModality(tab.id as MediaModality)}
+              className={`px-3 py-1.5 rounded-lg font-medium flex items-center space-x-2 transition cursor-pointer ${
+                selectedModality === tab.id
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -167,7 +220,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Commence an investigation in the Investigate tab to register evidence, generate reports, and track cases.
             </p>
             <button
-              onClick={onNewInvestigation}
+              onClick={() => onNewInvestigation()}
               className="mt-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer"
             >
               Start First Investigation
@@ -187,7 +240,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {investigations.map((inv) => {
+                {filteredInvestigations.map((inv) => {
                   const isSuspicious = inv.assessment.includes('Multiple suspicious');
                   const isModerate = inv.assessment.includes('Some indicators');
 
