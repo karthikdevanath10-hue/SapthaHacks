@@ -191,20 +191,6 @@ def extract_metadata(filepath: str, original_filename: str) -> Tuple[MetadataRes
                 evidence_source="Live Optical Acquisition Stream",
                 score_impact=0
             ))
-        else:
-            observations.append("Absence of hardware capture tags (standard on social media distribution & AI exports).")
-            evidence_items.append(EvidenceItem(
-                id="META-04",
-                title="Stripped or Absent Hardware Metadata",
-                layer="Metadata Analysis",
-                severity="low",
-                confidence="High Confidence",
-                explanation="No hardware device make, model, or exposure timing was detected in the file headers.",
-                why_flagged="Social media distribution and AI generators routinely strip hardware metadata.",
-                limitations="Stripped metadata is standard across the modern web and does NOT prove manipulation by itself.",
-                evidence_source="File Header Inspection",
-                score_impact=5
-            ))
 
     meta_result = MetadataResult(
         filename=original_filename,

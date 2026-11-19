@@ -424,7 +424,30 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
     };
   };
 
-  const filteredEvidence = analysis.evidence_scorecard.filter(item => {
+  // Filter out stripped camera info finding per user specification (do not show or calculate)
+  const isCameraRemovedItem = (item: EvidenceItem) => {
+    const id = (item.id || '').toUpperCase();
+    const title = (item.title || '').toLowerCase();
+    return (
+      (id === 'META-04' || id.startsWith('META-04-STRIP')) && !id.includes('LIVE')
+    ) || title.includes('camera info was removed') || title.includes('stripped or absent hardware');
+  };
+
+  const activeEvidenceScorecard = useMemo(() => {
+    return (analysis.evidence_scorecard || []).filter(item => !isCameraRemovedItem(item));
+  }, [analysis.evidence_scorecard]);
+
+  const cameraRemovedImpact = useMemo(() => {
+    return (analysis.evidence_scorecard || [])
+      .filter(item => isCameraRemovedItem(item))
+      .reduce((acc, curr) => acc + (curr.score_impact || 0), 0);
+  }, [analysis.evidence_scorecard]);
+
+  const displayIndicatorScore = useMemo(() => {
+    return Math.max(0, (analysis.indicator_score || 0) - cameraRemovedImpact);
+  }, [analysis.indicator_score, cameraRemovedImpact]);
+
+  const filteredEvidence = activeEvidenceScorecard.filter(item => {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'flagged') return item.severity === 'suspicious' || item.severity === 'medium';
     if (activeFilter === 'metadata') return item.layer.includes('Metadata') || item.id.toUpperCase().includes('META');
@@ -441,12 +464,12 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
   const isLive = Boolean(
     analysis.image_name.toLowerCase().includes('live_capture') || 
     analysis.image_name.toLowerCase().includes('live_video') ||
-    analysis.evidence_scorecard.some(i => i.id.toUpperCase().includes('META-04-LIVE'))
+    activeEvidenceScorecard.some(i => i.id.toUpperCase().includes('META-04-LIVE'))
   );
 
   const fiveLayerMetrics = useMemo(() => {
     // 1. Metadata Analysis
-    const metaItems = analysis.evidence_scorecard.filter(item => 
+    const metaItems = activeEvidenceScorecard.filter(item => 
       item.layer.toLowerCase().includes('metadata') || item.id.toUpperCase().includes('META')
     );
     const metaImpact = metaItems.reduce((acc, curr) => acc + (curr.score_impact || 0), 0);
@@ -454,7 +477,7 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
     
     let metaScore = 98;
     let metaStatus: 'AUTHENTIC' | 'CLEAN' | 'MARGINAL' | 'FLAGGED' = 'AUTHENTIC';
-    let metaNote = 'Hardware camera metadata verified';
+    let metaNote = 'File headers & metadata structure clean';
     
     if (isLive || metaItems.some(i => i.id.includes('META-04-LIVE'))) {
       metaScore = 100;
@@ -467,11 +490,11 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
     } else if (metaImpact > 0) {
       metaScore = 92;
       metaStatus = 'CLEAN';
-      metaNote = 'Social media EXIF removed (benign)';
+      metaNote = 'File headers verified (no tampering)';
     }
 
     // 2. Technical Forensics
-    const techItems = analysis.evidence_scorecard.filter(item => 
+    const techItems = activeEvidenceScorecard.filter(item => 
       (item.layer.toLowerCase().includes('technical') || item.id.toUpperCase().includes('TECH') ||
       item.layer.toLowerCase().includes('video') || item.layer.toLowerCase().includes('audio')) &&
       !item.layer.toLowerCase().includes('metadata')
@@ -517,7 +540,7 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
     }
 
     // 4. AI Visual Verification
-    const aiItems = analysis.evidence_scorecard.filter(item =>
+    const aiItems = activeEvidenceScorecard.filter(item =>
       item.layer.toLowerCase().includes('visual') || item.id.toUpperCase().includes('AI')
     );
     const aiImpact = aiItems.reduce((acc, curr) => acc + (curr.score_impact || 0), 0);
@@ -540,7 +563,7 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
     }
 
     // 5. Web & Social Provenance (MCP)
-    const provItems = analysis.evidence_scorecard.filter(item =>
+    const provItems = activeEvidenceScorecard.filter(item =>
       item.layer.toLowerCase().includes('provenance') || item.layer.toLowerCase().includes('caption') ||
       item.layer.toLowerCase().includes('claim') || item.id.toUpperCase().includes('CLAIM') || item.id.toUpperCase().includes('MCP')
     );
@@ -806,7 +829,7 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
             
             <div className="flex items-baseline space-x-1 my-1">
               <span className={`text-5xl font-extrabold font-mono ${theme.textColor}`}>
-                {analysis.indicator_score}
+                {displayIndicatorScore}
               </span>
               <span className="text-purple-400/60 font-mono text-base font-semibold">/100</span>
             </div>
@@ -814,12 +837,12 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
             <div className="w-full bg-slate-950 rounded-full h-2.5 my-2 overflow-hidden border border-purple-500/30">
               <div 
                 className={`h-full rounded-full bg-gradient-to-r ${theme.barColor} transition-all duration-1000 shadow-[0_0_10px_rgba(192,132,252,0.8)]`}
-                style={{ width: `${Math.max(analysis.indicator_score, 6)}%` }}
+                style={{ width: `${Math.max(displayIndicatorScore, 6)}%` }}
               />
             </div>
             
             <span className="text-[11px] font-medium text-purple-300/80 italic">
-              {analysis.indicator_score > 50 ? 'High Anomaly Signals' : analysis.indicator_score > 20 ? 'Moderate Anomaly Signals' : 'Clean & Natural Signals'}
+              {displayIndicatorScore > 50 ? 'High Anomaly Signals' : displayIndicatorScore > 20 ? 'Moderate Anomaly Signals' : 'Clean & Natural Signals'}
             </span>
 
             <button
@@ -997,7 +1020,7 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
         {/* Corporate Filter Pills (Cyber Neon Style) */}
         <div className="flex items-center flex-wrap gap-1.5 bg-slate-900/80 p-1.5 rounded-xl border border-purple-500/30 text-xs">
           {[
-            { id: 'all', label: `All Findings (${analysis.evidence_scorecard.length})` },
+            { id: 'all', label: `All Findings (${activeEvidenceScorecard.length})` },
             { id: 'flagged', label: 'Flagged Only' },
             { id: 'metadata', label: '1. Metadata' },
             { id: 'technical', label: '2. Technical' },
