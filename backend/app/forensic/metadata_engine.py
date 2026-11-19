@@ -175,18 +175,18 @@ def extract_metadata(filepath: str, original_filename: str) -> Tuple[MetadataRes
             evidence_source="Device Make & Model Tags",
             score_impact=0
         ))
-    elif ext in [".jpg", ".jpeg", ".png", ".mp4", ".mov"]:
-        is_live_capture = "live_capture" in original_filename.lower()
+    elif ext in [".jpg", ".jpeg", ".png", ".mp4", ".mov", ".webm"]:
+        is_live_capture = "live_capture" in original_filename.lower() or "live_video" in original_filename.lower()
         if is_live_capture:
-            observations.append("Direct web browser optical capture (WebRTC HTML5 canvas stream).")
+            observations.append("Direct web browser optical capture (WebRTC HTML5 video/canvas stream).")
             evidence_items.append(EvidenceItem(
                 id="META-04-LIVE",
-                title="Direct Browser Optical Capture (HTML5 Canvas)",
+                title="Direct Browser Optical Capture (HTML5 Stream)",
                 layer="Metadata Analysis",
                 severity="informational",
                 confidence="High Confidence",
                 explanation="Media was acquired live via browser optical sensor (WebRTC MediaStream). Standard HTML5 browser sandboxes generate clean raster buffers without physical hardware EXIF headers.",
-                why_flagged="Expected standard specification for direct in-browser camera acquisition.",
+                why_flagged="Expected standard specification for direct in-browser optical acquisition.",
                 limitations="Acquired live via browser optical sensor. Valid physical stream.",
                 evidence_source="Live Optical Acquisition Stream",
                 score_impact=0

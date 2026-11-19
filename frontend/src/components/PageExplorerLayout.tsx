@@ -4,7 +4,7 @@ import {
   Database, Globe, BarChart3, Search, User, Download, Trash2,
   RefreshCw, Plus, ArrowRight, CheckCircle2, AlertTriangle,
   ShieldAlert, Sparkles, FolderOpen, ChevronRight, Layers,
-  UploadCloud, Play, Square, Radio, ExternalLink, Zap, X
+  UploadCloud, Play, Square, Radio, ExternalLink, Zap, X, Circle
 } from 'lucide-react';
 import { InvestigationSummary, FullAnalysisResponse, MediaModality, UserProfile } from '../types';
 import { apiService } from '../services/api';
@@ -65,6 +65,17 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Video live capture & recording states
+  const [isVideoRecordingActive, setIsVideoRecordingActive] = useState<boolean>(false);
+  const [isVideoRecording, setIsVideoRecording] = useState<boolean>(false);
+  const [videoRecordingSeconds, setVideoRecordingSeconds] = useState<number>(0);
+  const [videoCameraError, setVideoCameraError] = useState<string | null>(null);
+  const [videoCameraStream, setVideoCameraStream] = useState<MediaStream | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const videoMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const videoChunksRef = useRef<Blob[]>([]);
+  const videoTimerRef = useRef<any>(null);
 
   // Storage stats
   const [storageStats, setStorageStats] = useState<{
@@ -298,6 +309,147 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
         handleRunAnalysis('image', file);
       }
     }, 'image/jpeg', 0.95);
+  };
+
+  // Live Video Recorder Lifecycle & Stream Handlers
+  useEffect(() => {
+    if (isVideoRecordingActive && videoCameraStream && videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = videoCameraStream;
+      videoPreviewRef.current.play().catch(e => console.warn('Video preview play error:', e));
+    }
+  }, [isVideoRecordingActive, videoCameraStream]);
+
+  useEffect(() => {
+    return () => {
+      if (videoCameraStream) {
+        videoCameraStream.getTracks().forEach(t => t.stop());
+      }
+      if (videoTimerRef.current) {
+        clearInterval(videoTimerRef.current);
+      }
+    };
+  }, [videoCameraStream]);
+
+  const startVideoCamera = async () => {
+    setVideoCameraError(null);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera/Video capture is not supported by this browser.');
+      }
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
+        });
+      } catch (audioErr) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      }
+      setVideoCameraStream(stream);
+      setIsVideoRecordingActive(true);
+    } catch (err: any) {
+      console.error('Video camera error:', err);
+      setVideoCameraError(err.message || 'Could not access optical sensor. Please ensure camera permissions are granted.');
+    }
+  };
+
+  const stopVideoCamera = () => {
+    if (videoTimerRef.current) {
+      clearInterval(videoTimerRef.current);
+      videoTimerRef.current = null;
+    }
+    if (videoMediaRecorderRef.current && isVideoRecording) {
+      try {
+        videoMediaRecorderRef.current.stop();
+      } catch (e) {}
+    }
+    if (videoCameraStream) {
+      videoCameraStream.getTracks().forEach(track => track.stop());
+      setVideoCameraStream(null);
+    }
+    setIsVideoRecording(false);
+    setIsVideoRecordingActive(false);
+    setVideoRecordingSeconds(0);
+  };
+
+  const startActualVideoRecording = () => {
+    if (!videoCameraStream) return;
+    videoChunksRef.current = [];
+    let mimeType = '';
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+      mimeType = 'video/webm;codecs=vp9,opus';
+    } else if (MediaRecorder.isTypeSupported('video/webm')) {
+      mimeType = 'video/webm';
+    } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+      mimeType = 'video/mp4';
+    }
+
+    try {
+      const recorder = new MediaRecorder(videoCameraStream, mimeType ? { mimeType } : undefined);
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          videoChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.start(250);
+      videoMediaRecorderRef.current = recorder;
+      setIsVideoRecording(true);
+      setVideoRecordingSeconds(0);
+      videoTimerRef.current = setInterval(() => {
+        setVideoRecordingSeconds(prev => prev + 1);
+      }, 1000);
+    } catch (e: any) {
+      setVideoCameraError('Failed to start video recorder: ' + e.message);
+    }
+  };
+
+  const stopVideoRecordingAndSave = (autoTest: boolean = false) => {
+    if (videoTimerRef.current) {
+      clearInterval(videoTimerRef.current);
+      videoTimerRef.current = null;
+    }
+    const recorder = videoMediaRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') {
+      stopVideoCamera();
+      return;
+    }
+
+    recorder.onstop = () => {
+      const mime = recorder.mimeType || 'video/webm';
+      const videoBlob = new Blob(videoChunksRef.current, { type: mime });
+      const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `live_video_${timestamp}.${ext}`;
+      const file = new File([videoBlob], filename, { type: mime });
+
+      if (videoCameraStream) {
+        videoCameraStream.getTracks().forEach(t => t.stop());
+        setVideoCameraStream(null);
+      }
+      setIsVideoRecording(false);
+      setIsVideoRecordingActive(false);
+      setVideoRecordingSeconds(0);
+
+      setSelectedFile(file);
+      const url = URL.createObjectURL(videoBlob);
+      setPreviewUrl(url);
+
+      if (autoTest) {
+        handleRunAnalysis('video', file);
+      }
+    };
+
+    recorder.stop();
+  };
+
+  const formatVideoTimer = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const handleRunAnalysis = async (mod: MediaModality, overrideFile?: File) => {
@@ -1068,19 +1220,153 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                         onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
                       />
 
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-purple-600/30 transition cursor-pointer flex-shrink-0"
-                      >
-                        <UploadCloud className="w-4 h-4" />
-                        <span>Select Video File</span>
-                      </button>
+                      <div className="flex items-center gap-2.5 flex-shrink-0 flex-wrap">
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-purple-600/30 transition cursor-pointer"
+                        >
+                          <UploadCloud className="w-4 h-4" />
+                          <span>Select Video File</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (isVideoRecordingActive) {
+                              stopVideoCamera();
+                            } else {
+                              startVideoCamera();
+                            }
+                          }}
+                          className={`px-4 py-2.5 rounded-xl border font-semibold text-xs flex items-center space-x-2 transition cursor-pointer ${
+                            isVideoRecordingActive
+                              ? 'border-rose-500/50 bg-rose-950/60 text-rose-300 hover:bg-rose-900 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                              : 'border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 hover:text-white shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+                          }`}
+                        >
+                          <Video className="w-4 h-4 text-cyan-400" />
+                          <span>{isVideoRecordingActive ? 'Close Recorder' : 'Record Live Video'}</span>
+                        </button>
+                      </div>
                     </div>
+
+                    {videoCameraError && (
+                      <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-xs text-rose-300 flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        <span>{videoCameraError}</span>
+                      </div>
+                    )}
+
+                    {isVideoRecordingActive && (
+                      <div className="relative rounded-2xl overflow-hidden border border-cyan-500/50 bg-slate-950 shadow-[0_0_30px_rgba(6,182,212,0.25)] p-4 space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between pb-2 border-b border-cyan-500/30">
+                          <div className="flex items-center space-x-2">
+                            <span className={`w-2.5 h-2.5 rounded-full ${isVideoRecording ? 'bg-rose-500 animate-ping' : 'bg-cyan-400 animate-pulse'}`} />
+                            <span className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">
+                              {isVideoRecording ? `LIVE RECORDING (${formatVideoTimer(videoRecordingSeconds)})` : 'LIVE OPTICAL VIDEO VIEWPORT'}
+                            </span>
+                          </div>
+                          <button
+                            onClick={stopVideoCamera}
+                            className="p-1 rounded-lg border border-cyan-500/40 bg-cyan-950/60 text-cyan-300 hover:text-white transition cursor-pointer"
+                            title="Close Video Recorder"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Video Viewfinder with HUD Overlay */}
+                        <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-cyan-500/30 shadow-inner">
+                          <video
+                            ref={videoPreviewRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover -scale-x-100"
+                          />
+                          
+                          {/* Sci-fi Overlay */}
+                          <div className="absolute inset-4 pointer-events-none border border-cyan-500/20 rounded-lg flex flex-col justify-between p-2">
+                            <div className="flex justify-between items-center text-[10px] font-mono text-cyan-400/80">
+                              <span className="flex items-center space-x-1">
+                                {isVideoRecording && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse mr-1" />}
+                                <span>{isVideoRecording ? 'REC ● ACTIVE' : '[CAM STANDBY]'}</span>
+                              </span>
+                              <span className="bg-black/60 px-2 py-0.5 rounded border border-cyan-500/30">
+                                {formatVideoTimer(videoRecordingSeconds)}
+                              </span>
+                            </div>
+                            <div className="self-center w-14 h-14 border border-cyan-400/30 rounded-full flex items-center justify-center">
+                              <div className={`w-3 h-3 rounded-full ${isVideoRecording ? 'bg-rose-500 animate-ping' : 'bg-cyan-400/50'}`} />
+                            </div>
+                            <div className="flex justify-between text-[10px] font-mono text-cyan-400/80">
+                              <span>OPTICAL TEMPORAL STREAM</span>
+                              <span>KEEP SUBJECT VISIBLE</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Recording Controls */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                          <button
+                            onClick={stopVideoCamera}
+                            className="px-3.5 py-2 rounded-xl border border-purple-500/40 bg-slate-900 text-xs text-purple-300 hover:text-white transition cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          
+                          <div className="flex items-center gap-2">
+                            {!isVideoRecording ? (
+                              <button
+                                onClick={startActualVideoRecording}
+                                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_20px_rgba(244,63,94,0.4)] transition cursor-pointer"
+                              >
+                                <Circle className="w-3.5 h-3.5 fill-white" />
+                                <span>Start Recording</span>
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => stopVideoRecordingAndSave(false)}
+                                  className="px-4 py-2.5 rounded-xl border border-rose-500/50 bg-rose-950/70 hover:bg-rose-900 text-rose-200 font-semibold text-xs flex items-center space-x-1.5 transition cursor-pointer"
+                                >
+                                  <Square className="w-3.5 h-3.5 fill-rose-300" />
+                                  <span>Stop & Review</span>
+                                </button>
+                                <button
+                                  onClick={() => stopVideoRecordingAndSave(true)}
+                                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-400 hover:to-purple-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_20px_rgba(244,63,94,0.4)] transition cursor-pointer"
+                                >
+                                  <Zap className="w-4 h-4" />
+                                  <span>Stop & Test Immediately</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {selectedFile && (
                       <div className="pt-3 border-t border-purple-500/20 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-white truncate max-w-sm">{selectedFile.name}</span>
-                        <span className="text-purple-300 font-mono">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                        <div className="flex items-center space-x-2 truncate">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                          <span className="font-semibold text-white truncate max-w-sm">{selectedFile.name}</span>
+                          <span className="text-purple-300 font-mono">({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedFile(null);
+                            setPreviewUrl(null);
+                          }}
+                          className="text-purple-400 hover:text-rose-400 transition ml-2"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+
+                    {previewUrl && (
+                      <div className="relative rounded-xl overflow-hidden max-h-56 bg-black/50 border border-purple-500/20 flex items-center justify-center p-1">
+                        <video src={previewUrl} controls className="max-h-52 w-full object-contain rounded-lg" />
                       </div>
                     )}
 
