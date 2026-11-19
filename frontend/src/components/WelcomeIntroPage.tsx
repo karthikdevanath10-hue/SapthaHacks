@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   ShieldCheck, Sparkles, Lock, ArrowRight, User, Mail, 
   Film, Mic, FileText, Globe, Camera, Layers, CheckCircle2, 
-  Cpu, AlertCircle, Database, ChevronRight, Play, Zap, Terminal
+  Cpu, AlertCircle, Database, ChevronRight, Play, Terminal
 } from 'lucide-react';
 import { authService, isSupabaseConfigured } from '../services/supabase';
 import { UserProfile } from '../types';
@@ -134,13 +134,6 @@ export const WelcomeIntroPage: React.FC<WelcomeIntroPageProps> = ({
           
           {/* LEFT COLUMN: HERO HEADLINE & INTRO */}
           <div className="lg:col-span-7 space-y-6 text-left">
-            
-            {/* Pill Tag */}
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full border border-purple-500/40 bg-purple-950/60 text-purple-300 text-xs font-mono shadow-[0_0_15px_rgba(168,85,247,0.25)]">
-              <Zap className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-              <span>TRUTHLENS MULTIMODAL FORENSIC INTELLIGENCE • PS-04</span>
-            </div>
-
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-tight">
               See Beyond The Pixels. <br />
