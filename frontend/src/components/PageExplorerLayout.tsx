@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Camera, Image as ImageIcon, Video, Mic, FileText, ShieldCheck,
   Database, Globe, BarChart3, Search, User, Download, Trash2,
@@ -1861,33 +1862,36 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       )}
 
       {/* ======================================================== */}
-      {/* FLOATING WINDOW: LIVE PHOTO CAMERA ACQUISITION */}
+      {/* STEADY FLOATING WINDOW: LIVE PHOTO CAMERA ACQUISITION */}
       {/* ======================================================== */}
-      {isCameraActive && (
+      {typeof document !== 'undefined' && isCameraActive && createPortal(
         <div 
           className={
             isFloatingCameraPiP
-              ? "fixed bottom-6 right-6 z-50 w-80 sm:w-96 animate-in slide-in-from-bottom-5 duration-300 drop-shadow-2xl"
-              : "fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200"
+              ? "fixed bottom-6 right-6 z-[9999] w-80 sm:w-96 animate-in slide-in-from-bottom-5 duration-300 drop-shadow-2xl"
+              : "fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200"
           }
           onClick={isFloatingCameraPiP ? undefined : () => {}}
         >
           <div 
-            className={`relative w-full ${isFloatingCameraPiP ? '' : 'max-w-2xl'} bg-slate-950/95 border-2 border-cyan-400/60 rounded-3xl p-4 sm:p-5 shadow-[0_0_60px_rgba(6,182,212,0.35)] backdrop-blur-2xl flex flex-col space-y-3.5 overflow-hidden`}
+            className={`relative w-full ${isFloatingCameraPiP ? '' : 'max-w-2xl'} bg-slate-950 border-2 border-cyan-400/70 rounded-3xl p-5 sm:p-6 shadow-[0_0_80px_rgba(6,182,212,0.4)] backdrop-blur-2xl flex flex-col space-y-4 overflow-hidden`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Ambient Background Cyan Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
             {/* Title Bar */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-cyan-500/30">
-              <div className="flex items-center space-x-2.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+            <div className="flex items-center justify-between pb-3 border-b border-cyan-500/30">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-xl bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                  <Camera className="w-5 h-5 text-cyan-400" />
+                </div>
                 <div>
-                  <h4 className="text-xs sm:text-sm font-mono font-bold text-cyan-300 uppercase tracking-wider flex items-center space-x-1.5">
+                  <h4 className="text-sm sm:text-base font-mono font-bold text-cyan-300 uppercase tracking-wider flex items-center space-x-2">
                     <span>Optical Sensor Live Viewport</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-500/40">LIVE</span>
                   </h4>
-                  <p className="text-[10px] text-cyan-400/70 font-mono">
+                  <p className="text-[11px] text-cyan-400/80 font-mono">
                     Direct WebRTC Stream • Zero EXIF Penalty Mode
                   </p>
                 </div>
@@ -1898,24 +1902,24 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsFloatingCameraPiP(!isFloatingCameraPiP)}
-                  className="p-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/70 text-cyan-300 hover:text-white transition cursor-pointer"
+                  className="p-2 rounded-xl border border-cyan-500/40 bg-cyan-950/70 text-cyan-300 hover:text-white transition cursor-pointer"
                   title={isFloatingCameraPiP ? "Expand to Center" : "Float to Corner (PiP)"}
                 >
-                  {isFloatingCameraPiP ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+                  {isFloatingCameraPiP ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
                 </button>
                 <button
                   type="button"
                   onClick={stopCamera}
-                  className="p-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/70 text-cyan-300 hover:text-white transition cursor-pointer"
+                  className="p-2 rounded-xl border border-cyan-500/40 bg-cyan-950/70 text-cyan-300 hover:text-white transition cursor-pointer"
                   title="Close Camera"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
             {/* Viewfinder Video Element with Sci-Fi HUD */}
-            <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-cyan-500/40 shadow-inner">
+            <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border-2 border-cyan-500/40 shadow-inner">
               <video
                 ref={(el) => {
                   videoRef.current = el;
@@ -1931,27 +1935,27 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
               />
 
               {/* Holographic Reticle Overlay */}
-              <div className="absolute inset-3 pointer-events-none border border-cyan-500/20 rounded-xl flex flex-col justify-between p-2">
+              <div className="absolute inset-4 pointer-events-none border border-cyan-500/20 rounded-xl flex flex-col justify-between p-2">
                 <div className="flex justify-between text-[10px] font-mono text-cyan-400/80">
-                  <span className="bg-black/60 px-1.5 py-0.5 rounded border border-cyan-500/30">[CAM-01 ACTIVE]</span>
-                  <span className="bg-black/60 px-1.5 py-0.5 rounded border border-cyan-500/30">1080P HD • 60 FPS</span>
+                  <span className="bg-black/60 px-2 py-0.5 rounded border border-cyan-500/30">[CAM-01 ACTIVE]</span>
+                  <span className="bg-black/60 px-2 py-0.5 rounded border border-cyan-500/30">1080P HD • 60 FPS</span>
                 </div>
-                <div className="self-center w-12 h-12 border border-cyan-400/40 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                  <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-pulse" />
+                <div className="self-center w-14 h-14 border border-cyan-400/40 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                  <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse" />
                 </div>
                 <div className="flex justify-between text-[10px] font-mono text-cyan-400/80">
-                  <span className="bg-black/60 px-1.5 py-0.5 rounded">DIRECT WEBRTC RASTER</span>
-                  <span className="bg-black/60 px-1.5 py-0.5 rounded">READY FOR FORENSIC SCAN</span>
+                  <span className="bg-black/60 px-2 py-0.5 rounded">DIRECT WEBRTC RASTER</span>
+                  <span className="bg-black/60 px-2 py-0.5 rounded">READY FOR SCAN</span>
                 </div>
               </div>
             </div>
 
             {/* Floating Actions Deck */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <button
                 type="button"
                 onClick={stopCamera}
-                className="px-3.5 py-2 rounded-xl border border-purple-500/40 bg-slate-900 text-xs text-purple-300 hover:text-white transition cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-purple-500/40 bg-slate-900 text-xs text-purple-300 hover:text-white transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1960,7 +1964,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                 <button
                   type="button"
                   onClick={() => captureLiveImage(false)}
-                  className="px-4 py-2.5 rounded-xl border border-cyan-500/50 bg-cyan-950/70 hover:bg-cyan-900 text-cyan-200 font-semibold text-xs flex items-center space-x-1.5 transition cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl border border-cyan-500/50 bg-cyan-950/70 hover:bg-cyan-900 text-cyan-200 font-semibold text-xs flex items-center space-x-2 transition cursor-pointer shadow-md"
                 >
                   <Camera className="w-4 h-4 text-cyan-400" />
                   <span>Snap Photo</span>
@@ -1968,7 +1972,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                 <button
                   type="button"
                   onClick={() => captureLiveImage(true)}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_20px_rgba(6,182,212,0.4)] transition cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_25px_rgba(6,182,212,0.45)] transition cursor-pointer"
                 >
                   <Zap className="w-4 h-4" />
                   <span>Capture & Test Immediately</span>
@@ -1977,37 +1981,43 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ======================================================== */}
-      {/* FLOATING WINDOW: LIVE VIDEO RECORDER */}
+      {/* STEADY FLOATING WINDOW: LIVE VIDEO RECORDER */}
       {/* ======================================================== */}
-      {isVideoRecordingActive && (
+      {typeof document !== 'undefined' && isVideoRecordingActive && createPortal(
         <div 
           className={
             isFloatingVideoPiP
-              ? "fixed bottom-6 right-6 z-50 w-80 sm:w-96 animate-in slide-in-from-bottom-5 duration-300 drop-shadow-2xl"
-              : "fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200"
+              ? "fixed bottom-6 right-6 z-[9999] w-80 sm:w-96 animate-in slide-in-from-bottom-5 duration-300 drop-shadow-2xl"
+              : "fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200"
           }
           onClick={isFloatingVideoPiP ? undefined : () => {}}
         >
           <div 
-            className={`relative w-full ${isFloatingVideoPiP ? '' : 'max-w-2xl'} bg-slate-950/95 border-2 border-rose-500/60 rounded-3xl p-4 sm:p-5 shadow-[0_0_60px_rgba(244,63,94,0.35)] backdrop-blur-2xl flex flex-col space-y-3.5 overflow-hidden`}
+            className={`relative w-full ${isFloatingVideoPiP ? '' : 'max-w-2xl'} bg-slate-950 border-2 border-rose-500/70 rounded-3xl p-5 sm:p-6 shadow-[0_0_80px_rgba(244,63,94,0.4)] backdrop-blur-2xl flex flex-col space-y-4 overflow-hidden`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Ambient Background Rose Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-72 h-72 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
             {/* Title Bar */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-rose-500/30">
-              <div className="flex items-center space-x-2.5">
-                <span className={`w-2.5 h-2.5 rounded-full ${isVideoRecording ? 'bg-rose-500 animate-ping' : 'bg-cyan-400 animate-pulse'}`} />
+            <div className="flex items-center justify-between pb-3 border-b border-rose-500/30">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-xl bg-rose-950/80 border border-rose-500/50 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.3)]">
+                  <Video className="w-5 h-5 text-rose-400" />
+                </div>
                 <div>
-                  <h4 className="text-xs sm:text-sm font-mono font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                  <h4 className="text-sm sm:text-base font-mono font-bold text-white uppercase tracking-wider flex items-center space-x-2">
                     <span>{isVideoRecording ? `LIVE RECORDING (${formatVideoTimer(videoRecordingSeconds)})` : 'LIVE OPTICAL VIDEO RECORDER'}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${isVideoRecording ? 'bg-rose-950 text-rose-300 border border-rose-500/50 animate-pulse' : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'}`}>
+                      {isVideoRecording ? 'REC ● ACTIVE' : 'STANDBY'}
+                    </span>
                   </h4>
-                  <p className="text-[10px] text-purple-300/70 font-mono">
+                  <p className="text-[11px] text-purple-300/80 font-mono">
                     Temporal Frame Extraction • Deepfake Motion Jitter Check
                   </p>
                 </div>
@@ -2018,24 +2028,24 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsFloatingVideoPiP(!isFloatingVideoPiP)}
-                  className="p-1.5 rounded-lg border border-purple-500/40 bg-purple-950/60 text-purple-300 hover:text-white transition cursor-pointer"
+                  className="p-2 rounded-xl border border-purple-500/40 bg-purple-950/60 text-purple-300 hover:text-white transition cursor-pointer"
                   title={isFloatingVideoPiP ? "Expand to Center" : "Float to Corner (PiP)"}
                 >
-                  {isFloatingVideoPiP ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+                  {isFloatingVideoPiP ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
                 </button>
                 <button
                   type="button"
                   onClick={stopVideoCamera}
-                  className="p-1.5 rounded-lg border border-rose-500/40 bg-rose-950/60 text-rose-300 hover:text-white transition cursor-pointer"
+                  className="p-2 rounded-xl border border-rose-500/40 bg-rose-950/60 text-rose-300 hover:text-white transition cursor-pointer"
                   title="Close Video Recorder"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
             {/* Viewfinder Video Element with Sci-Fi HUD */}
-            <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-rose-500/30 shadow-inner">
+            <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center border-2 border-rose-500/40 shadow-inner">
               <video
                 ref={(el) => {
                   videoPreviewRef.current = el;
@@ -2051,34 +2061,34 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
               />
 
               {/* Sci-fi Overlay */}
-              <div className="absolute inset-3 pointer-events-none border border-rose-500/20 rounded-xl flex flex-col justify-between p-2">
+              <div className="absolute inset-4 pointer-events-none border border-rose-500/20 rounded-xl flex flex-col justify-between p-2">
                 <div className="flex justify-between items-center text-[10px] font-mono text-cyan-400/80">
-                  <span className="flex items-center space-x-1 bg-black/60 px-2 py-0.5 rounded border border-rose-500/30">
+                  <span className="flex items-center space-x-1 bg-black/70 px-2 py-0.5 rounded border border-rose-500/30">
                     {isVideoRecording && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse mr-1" />}
                     <span className={isVideoRecording ? 'text-rose-400 font-bold' : ''}>
                       {isVideoRecording ? 'REC ● ACTIVE' : '[CAM STANDBY]'}
                     </span>
                   </span>
-                  <span className="bg-black/80 px-2 py-0.5 rounded border border-rose-500/40 text-rose-300 font-bold font-mono">
+                  <span className="bg-black/90 px-2.5 py-0.5 rounded border border-rose-500/50 text-rose-300 font-bold font-mono text-xs shadow-md">
                     {formatVideoTimer(videoRecordingSeconds)}
                   </span>
                 </div>
-                <div className="self-center w-14 h-14 border border-rose-400/30 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(244,63,94,0.3)]">
-                  <div className={`w-3 h-3 rounded-full ${isVideoRecording ? 'bg-rose-500 animate-ping' : 'bg-cyan-400/50'}`} />
+                <div className="self-center w-16 h-16 border border-rose-400/40 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(244,63,94,0.4)]">
+                  <div className={`w-3.5 h-3.5 rounded-full ${isVideoRecording ? 'bg-rose-500 animate-ping' : 'bg-cyan-400/50'}`} />
                 </div>
                 <div className="flex justify-between text-[10px] font-mono text-cyan-400/80">
-                  <span className="bg-black/60 px-1.5 py-0.5 rounded">OPTICAL TEMPORAL STREAM</span>
-                  <span className="bg-black/60 px-1.5 py-0.5 rounded">KEEP SUBJECT VISIBLE</span>
+                  <span className="bg-black/60 px-2 py-0.5 rounded">OPTICAL TEMPORAL STREAM</span>
+                  <span className="bg-black/60 px-2 py-0.5 rounded">KEEP SUBJECT VISIBLE</span>
                 </div>
               </div>
             </div>
 
             {/* Floating Actions Deck */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <button
                 type="button"
                 onClick={stopVideoCamera}
-                className="px-3.5 py-2 rounded-xl border border-purple-500/40 bg-slate-900 text-xs text-purple-300 hover:text-white transition cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-purple-500/40 bg-slate-900 text-xs text-purple-300 hover:text-white transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -2088,7 +2098,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                   <button
                     type="button"
                     onClick={startActualVideoRecording}
-                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_20px_rgba(244,63,94,0.4)] transition cursor-pointer"
+                    className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_25px_rgba(244,63,94,0.5)] transition cursor-pointer"
                   >
                     <Circle className="w-3.5 h-3.5 fill-white" />
                     <span>Start Recording</span>
@@ -2098,7 +2108,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                     <button
                       type="button"
                       onClick={() => stopVideoRecordingAndSave(false)}
-                      className="px-4 py-2.5 rounded-xl border border-rose-500/50 bg-rose-950/70 hover:bg-rose-900 text-rose-200 font-semibold text-xs flex items-center space-x-1.5 transition cursor-pointer"
+                      className="px-4 py-2.5 rounded-xl border border-rose-500/50 bg-rose-950/70 hover:bg-rose-900 text-rose-200 font-semibold text-xs flex items-center space-x-2 transition cursor-pointer shadow-md"
                     >
                       <Square className="w-3.5 h-3.5 fill-rose-300" />
                       <span>Stop & Review</span>
@@ -2106,7 +2116,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                     <button
                       type="button"
                       onClick={() => stopVideoRecordingAndSave(true)}
-                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-400 hover:to-purple-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_20px_rgba(244,63,94,0.4)] transition cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-400 hover:to-purple-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_25px_rgba(244,63,94,0.5)] transition cursor-pointer"
                     >
                       <Zap className="w-4 h-4" />
                       <span>Stop & Test Immediately</span>
@@ -2117,7 +2127,8 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>
