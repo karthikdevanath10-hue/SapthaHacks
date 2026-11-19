@@ -28,6 +28,7 @@ interface PageExplorerLayoutProps {
   onOpenInvestigation: (id: string) => void;
   onInspectResult: (result: FullAnalysisResponse, previewUrl?: string) => void;
   apiStatus: { healthy: boolean; supabase: boolean; gemini: boolean };
+  onReturnToWelcome?: () => void;
 }
 
 export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
@@ -36,7 +37,8 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   onSignOut,
   onOpenInvestigation,
   onInspectResult,
-  apiStatus
+  apiStatus,
+  onReturnToWelcome
 }) => {
   const [activeOption, setActiveOption] = useState<ExplorerOptionId>('image');
   const [investigations, setInvestigations] = useState<InvestigationSummary[]>([]);
@@ -740,16 +742,25 @@ interface VaultFileItem {
         </button>
 
         {/* 1. TOP BRAND LOGO (Flush to top end of screen) */}
-        <div className="flex items-center space-x-3.5 border-b border-purple-500/20 pb-4 flex-shrink-0">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/40 ring-1 ring-purple-400/30 flex-shrink-0">
+        <div 
+          onClick={onReturnToWelcome}
+          className={`flex items-center space-x-3.5 border-b border-purple-500/20 pb-4 flex-shrink-0 ${onReturnToWelcome ? 'cursor-pointer group' : ''}`}
+          title={onReturnToWelcome ? "Return to Welcome & Introduction Page" : undefined}
+        >
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/40 ring-1 ring-purple-400/30 flex-shrink-0 group-hover:scale-105 transition">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <div>
             <span className="font-extrabold text-xl tracking-tight text-white drop-shadow-[0_0_12px_rgba(168,85,247,0.5)]">
               Truth<span className="text-purple-400">Lens</span>
             </span>
-            <p className="text-[11px] text-purple-300/70">
-              Multimodal AI Forensics
+            <p className="text-[11px] text-purple-300/70 flex items-center space-x-1">
+              <span>Multimodal AI Forensics</span>
+              {onReturnToWelcome && (
+                <span className="text-purple-400 text-[9px] opacity-0 group-hover:opacity-100 transition">
+                  • Intro
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -1000,6 +1011,18 @@ interface VaultFileItem {
           </div>
 
           <div className="flex items-center space-x-3">
+            {onReturnToWelcome && (
+              <button
+                type="button"
+                onClick={onReturnToWelcome}
+                title="Return to Welcome & Introduction Overview"
+                className="px-3 py-1.5 rounded-full bg-purple-950/70 border border-purple-500/40 text-purple-300 hover:text-white hover:border-purple-300 text-xs font-semibold flex items-center space-x-1.5 transition shadow-xs cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span className="hidden sm:inline">Welcome Intro</span>
+              </button>
+            )}
+
             {currentUser ? (
               <button
                 onClick={onSignOut}

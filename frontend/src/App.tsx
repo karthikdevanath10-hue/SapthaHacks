@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { WelcomeIntroPage } from './components/WelcomeIntroPage';
 import { PageExplorerLayout } from './components/PageExplorerLayout';
 import { EvidenceScorecardView } from './components/EvidenceScorecardView';
 import { AuthModal } from './components/AuthModal';
@@ -8,6 +9,7 @@ import { apiService } from './services/api';
 import { ArrowLeft } from 'lucide-react';
 
 export function App() {
+  const [hasEnteredWorkspace, setHasEnteredWorkspace] = useState<boolean>(false);
   const [inspectingAnalysis, setInspectingAnalysis] = useState<FullAnalysisResponse | null>(null);
   const [inspectingPreviewUrl, setInspectingPreviewUrl] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -22,7 +24,9 @@ export function App() {
   useEffect(() => {
     const initApp = async () => {
       const user = await authService.getCurrentUser();
-      if (user) setCurrentUser(user);
+      if (user) {
+        setCurrentUser(user);
+      }
 
       const health = await apiService.checkHealth();
       setApiStatus({
@@ -49,8 +53,10 @@ export function App() {
   const handleSignOut = async () => {
     await authService.signOut();
     setCurrentUser(null);
+    setHasEnteredWorkspace(false);
   };
 
+  // 1. Detailed Scientific Scorecard Dossier View
   if (inspectingAnalysis) {
     return (
       <div className="min-h-screen bg-[#070314] text-white p-4 sm:p-8 space-y-6 relative overflow-hidden font-sans">
@@ -74,6 +80,31 @@ export function App() {
     );
   }
 
+  // 2. Initial Introduction & Welcome Landing Page with Demo/Sign-in Portal
+  if (!hasEnteredWorkspace) {
+    return (
+      <>
+        <WelcomeIntroPage
+          onEnterWorkspace={(user) => {
+            if (user) setCurrentUser(user);
+            setHasEnteredWorkspace(true);
+          }}
+          apiStatus={apiStatus}
+        />
+
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+          onSuccess={(user) => {
+            setCurrentUser(user);
+            setHasEnteredWorkspace(true);
+          }}
+        />
+      </>
+    );
+  }
+
+  // 3. Interactive Multimodal Forensic Workspace (Page Explorer Layout)
   return (
     <>
       <PageExplorerLayout
@@ -86,6 +117,7 @@ export function App() {
           setInspectingAnalysis(res);
         }}
         apiStatus={apiStatus}
+        onReturnToWelcome={() => setHasEnteredWorkspace(false)}
       />
 
       <AuthModal
