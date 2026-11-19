@@ -127,7 +127,10 @@ async def analyze_audio_with_gemini(filepath: str, meta: Dict[str, Any]) -> Tupl
             ".wav": "audio/wav",
             ".m4a": "audio/mp4",
             ".aac": "audio/aac",
-            ".ogg": "audio/ogg"
+            ".ogg": "audio/ogg",
+            ".weba": "audio/webm",
+            ".webm": "audio/webm",
+            ".flac": "audio/flac"
         }
         audio_mime = mime_map.get(ext, "audio/mp3")
 

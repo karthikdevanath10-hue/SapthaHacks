@@ -24,10 +24,14 @@ export const apiService = {
     caption?: string;
     sourceContext?: string;
     userId?: string;
+    modality?: string;
   }): Promise<FullAnalysisResponse> {
     const formData = new FormData();
     if (params.file) {
       formData.append('file', params.file);
+    }
+    if (params.modality) {
+      formData.append('modality', params.modality);
     }
     if (params.textContent && params.textContent.trim()) {
       formData.append('text_content', params.textContent.trim());

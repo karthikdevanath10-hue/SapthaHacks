@@ -27,7 +27,7 @@ class Settings(BaseSettings):
         # Videos
         ".mp4", ".mov", ".webm", ".avi", ".mkv",
         # Audio / Voice
-        ".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac",
+        ".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac", ".weba",
         # Text
         ".txt"
     ]

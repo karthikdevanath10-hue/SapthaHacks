@@ -64,13 +64,15 @@ async def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
-def detect_modality(filename: str) -> str:
+def detect_modality(filename: str, override: Optional[str] = None) -> str:
+    if override and override.lower() in ["image", "video", "audio", "text"]:
+        return override.lower()
     ext = os.path.splitext(filename)[1].lower()
     if ext in [".jpg", ".jpeg", ".png", ".webp", ".tiff"]:
         return "image"
     elif ext in [".mp4", ".mov", ".webm", ".avi", ".mkv"]:
         return "video"
-    elif ext in [".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac"]:
+    elif ext in [".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac", ".weba"]:
         return "audio"
     elif ext in [".txt"]:
         return "text"
@@ -82,7 +84,8 @@ async def analyze_multimodal_media(
     text_content: Optional[str] = Form(None),
     caption: Optional[str] = Form(None),
     source_context: Optional[str] = Form(None),
-    user_id: Optional[str] = Form(None)
+    user_id: Optional[str] = Form(None),
+    modality: Optional[str] = Form(None)
 ):
     investigation_id = str(uuid.uuid4())
     all_evidence: List[EvidenceItem] = []
@@ -108,7 +111,7 @@ async def analyze_multimodal_media(
                 detail=f"Unsupported format '{ext}'. Supported: {', '.join(settings.ALLOWED_EXTENSIONS)}"
             )
 
-        modality = detect_modality(file.filename)
+        modality = detect_modality(file.filename, override=modality)
         filename = f"{investigation_id[:8]}_{file.filename.replace(' ', '_')}"
         filepath = os.path.join(settings.UPLOAD_DIR, filename)
 
