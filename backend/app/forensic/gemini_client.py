@@ -13,7 +13,8 @@ logger = logging.getLogger("truthlens.gemini")
 
 def configured_models() -> List[str]:
     models: List[str] = []
-    for name in (settings.GEMINI_MODEL, settings.GEMINI_FALLBACK_MODEL):
+    # Prioritize fast, high-quota flash-lite models to avoid HTTP 429
+    for name in (settings.GEMINI_MODEL, settings.GEMINI_FALLBACK_MODEL, "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"):
         if name and name not in models:
             models.append(name)
     return models

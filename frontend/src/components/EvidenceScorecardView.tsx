@@ -247,25 +247,63 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
       };
     }
 
-    // 6. AI Visual Verification
+    // 5.1 Hyper-Saturation & Synthetic Color Range Check
+    if (id.includes('TECH-05') || title.includes('hyper-saturation') || title.includes('chromatic dynamics')) {
+      return {
+        badge: 'Color Dynamics Anomaly',
+        simpleTitle: 'Atypical Hyper-Saturation & Synthetic Color Gamut',
+        takeaway: item.explanation || 'Extreme color vibrancy and glowing plasma hues far exceed natural optical camera sensor capabilities.',
+        statusIcon: <AlertTriangle className="w-5 h-5 text-amber-400" />,
+        statusColor: 'text-amber-300',
+        borderColor: 'border-amber-500/40',
+        bgGradient: 'from-amber-950/50 via-slate-950/80 to-slate-950/90',
+        verdictLabel: 'UNNATURAL COLOR',
+        verdictClass: 'bg-amber-950/70 text-amber-300 border-amber-500/40'
+      };
+    }
+
+    // 6. AI Visual Verification & Generative AI Detection
     if (id.includes('AI') || item.layer.toLowerCase().includes('visual')) {
-      if (item.severity === 'suspicious') {
+      const isAiFlagged = item.severity === 'suspicious' || 
+        item.severity === 'medium' || 
+        item.score_impact > 0 || 
+        id.includes('AI-VIS-01') || 
+        title.includes('generative ai') || 
+        title.includes('inconsistencies') ||
+        title.includes('impossible physics');
+
+      if (isAiFlagged) {
         return {
-          badge: 'Visual Artifacts',
-          simpleTitle: 'Synthetic Visual Inconsistencies Detected',
-          takeaway: 'Unnatural texture smoothing, diffusion artifacts, or anatomical discrepancies were detected in visual structures.',
+          badge: 'Generative AI Detected',
+          simpleTitle: item.title || 'Generative AI Signatures & Impossible Physics Detected',
+          takeaway: item.explanation || 'Characteristic text-to-image diffusion patterns, fantasy biology, or impossible physical lighting were isolated.',
           statusIcon: <ShieldAlert className="w-5 h-5 text-rose-400" />,
           statusColor: 'text-rose-300',
-          borderColor: 'border-rose-500/30',
-          bgGradient: 'from-rose-950/40 via-slate-950/70 to-slate-950/90',
-          verdictLabel: 'FLAGGED',
-          verdictClass: 'bg-rose-950/60 text-rose-300 border-rose-500/40'
+          borderColor: 'border-rose-500/50',
+          bgGradient: 'from-rose-950/60 via-slate-950/80 to-slate-950/95',
+          verdictLabel: 'SYNTHETIC AI',
+          verdictClass: 'bg-rose-950/80 text-rose-300 border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.4)]'
         };
       }
+
+      if (id.includes('AI-FALLBACK')) {
+        return {
+          badge: 'Offline Evaluation',
+          simpleTitle: 'AI Vision Engine Baseline Verification',
+          takeaway: 'Evaluated in offline baseline mode without active vision model cross-verification.',
+          statusIcon: <Info className="w-5 h-5 text-sky-400" />,
+          statusColor: 'text-sky-300',
+          borderColor: 'border-sky-500/30',
+          bgGradient: 'from-sky-950/40 via-slate-950/70 to-slate-950/90',
+          verdictLabel: 'BASELINE',
+          verdictClass: 'bg-sky-950/60 text-sky-300 border-sky-500/40'
+        };
+      }
+
       return {
-        badge: 'Visual Realism Intact',
-        simpleTitle: 'Physical, Lighting & Anatomical Coherence Intact',
-        takeaway: 'Lighting physics, edge boundaries, surface shadows, and structural perspectives exhibit natural optical behavior.',
+        badge: 'Natural Photography',
+        simpleTitle: 'Physical, Lighting & Optical Coherence Intact',
+        takeaway: 'Lighting physics, edge boundaries, surface shadows, and structural perspectives exhibit natural optical camera behavior.',
         statusIcon: <CheckCircle2 className="w-5 h-5 text-emerald-400" />,
         statusColor: 'text-emerald-300',
         borderColor: 'border-emerald-500/30',

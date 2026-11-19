@@ -6,25 +6,44 @@ from app.core.config import settings
 from app.forensic.gemini_client import gemini_json
 
 FORENSIC_VISION_SYSTEM_PROMPT = """
-You are TruthLens Senior Forensic Vision Analyst.
-Your goal is to inspect the submitted image for digital manipulation, generative AI artifacts, physical lighting inconsistencies, and anatomical/structural anomalies.
+You are TruthLens Senior Forensic Vision Analyst and Generative AI Detection Specialist.
+Evaluate THIS SUBMITTED IMAGE strictly on its own visual evidence as an isolated, independent forensic case. Do NOT assume the image is authentic.
 
-CRITICAL FORENSIC RULES:
-1. You are NOT allowed to issue a blanket verdict like "This is 100% fake" or "This is 100% real".
-2. You must clearly identify OBSERVABLE evidence (e.g. inconsistent shadow cast, impossible eye reflections, distorted hands, garbled text).
-3. If no anomalies are observed, state clearly that visual rendering adheres to natural optical principles, but note that advanced synthesis can evade basic visual inspection.
-4. Separate subjective observations from physical facts.
-5. You must output STRICTLY valid JSON with no markdown wrapping, matching this exact schema:
+YOUR CORE MISSION:
+Determine whether this image is:
+(A) A physical, real-world photograph captured by an optical camera lens, OR
+(B) A Generative AI synthesis / digital art creation (e.g. Midjourney, DALL-E, Stable Diffusion, Flux, digital fantasy rendering).
+
+INDEPENDENT FORENSIC CRITERIA:
+1. GENERATIVE AI & FANTASY SYNTHESIS SIGNATURES:
+   - Impossible anatomy or fantasy biology (e.g., animals with glowing plasma/fire fur, electrical wings, glowing neon eyes without natural optical pupil/corneal reflections, fur melting into energy).
+   - Text-to-image diffusion rendering signatures (fractal brushwork, hyper-smooth plastic gradients, algorithmic swirls, dream-like texture transitions, AI painterly noise).
+   - Self-illuminating objects that fail to cast real-world ambient occlusion or shadow interaction with the environment.
+   - Hyper-saturated ethereal color palettes characteristic of text-to-image prompts.
+2. PHYSICAL CAMERA OPTICAL REALISM:
+   - Coherent real-world physics, natural camera sensor noise grain, realistic depth of field (DoF), authentic optical reflections, and physically grounded geometry.
+
+SCORING & SEVERITY RULES:
+- If the image displays clear Generative AI synthesis, fantasy biology/physics, or diffusion textures:
+  * You MUST set "is_ai_generated": true
+  * You MUST set "severity": "suspicious"
+  * You MUST set "score_impact": 25 to 35
+  * You MUST document all synthetic visual cues in "visual_anomalies" and "generation_artifacts_observed".
+- If the image is a genuine camera photograph with natural optical physics:
+  * Set "is_ai_generated": false, "severity": "informational", "score_impact": 0, "visual_anomalies": [], "generation_artifacts_observed": [].
+
+You must output STRICTLY valid JSON with no markdown wrapping, matching this exact schema:
 {
-  "scene_description": "Detailed description of objects, environment, and setting",
+  "is_ai_generated": true,
+  "scene_description": "Detailed description of objects, environment, and visual nature (photograph vs AI art)",
   "detected_entities": ["entity 1", "entity 2"],
-  "visual_anomalies": ["observed anomaly 1", "observed anomaly 2"],
-  "lighting_physics": "Assessment of light sources, specular highlights, and shadow directions",
-  "anatomical_or_structural_consistency": "Assessment of hands, faces, geometric lines, background perspective",
-  "generation_artifacts_observed": ["artifact 1", "artifact 2"],
-  "confidence_rationale": "Why you have high/moderate/low confidence in these observations",
-  "severity": "informational" | "low" | "medium" | "suspicious",
-  "score_impact": 0 to 25
+  "visual_anomalies": ["observed anomaly or fantasy physics 1", "observed anomaly 2"],
+  "lighting_physics": "Assessment of light sources, impossible glow, internal illumination, or natural shadow directions",
+  "anatomical_or_structural_consistency": "Assessment of biological feasibility, anatomy, edges, and background perspective",
+  "generation_artifacts_observed": ["diffusion artifact 1", "algorithmic rendering signature 2"],
+  "confidence_rationale": "Clear scientific rationale for determination",
+  "severity": "suspicious",
+  "score_impact": 30
 }
 """
 
@@ -66,22 +85,39 @@ async def analyze_with_gemini(filepath: str) -> Tuple[AIVisualResult, List[Evide
         structural = parsed.get("anatomical_or_structural_consistency", "Standard anatomy and geometry observed.")
         artifacts = parsed.get("generation_artifacts_observed", [])
         confidence = parsed.get("confidence_rationale", "Moderate confidence based on visible pixel structure.")
+        is_ai_gen = bool(parsed.get("is_ai_generated", False))
         severity = parsed.get("severity", "informational")
         score_impact = int(parsed.get("score_impact", 0))
 
+        # Check for strong generative AI cues in text descriptions
+        ai_cue_words = [
+            "generative ai", "diffusion", "synthetic", "text-to-image", "plasma", 
+            "impossible", "fantasy", "algorithmic", "hyper-stylized", "brushwork", 
+            "fractal", "bioluminescent", "swirling", "digital art", "ai-generated",
+            "ai stylistic", "midjourney", "dall-e", "stable diffusion"
+        ]
+        has_ai_cues = any(
+            any(w in s.lower() for w in ai_cue_words)
+            for s in (anomalies + artifacts + [scene_desc, lighting, structural])
+        )
+
+        if is_ai_gen or has_ai_cues or len(anomalies) + len(artifacts) >= 2:
+            severity = "suspicious"
+            score_impact = max(score_impact, 30)
+
         # Build evidence items
-        if anomalies or artifacts:
+        if anomalies or artifacts or is_ai_gen:
             evidence_items.append(EvidenceItem(
                 id="AI-VIS-01",
-                title="AI Multimodal Visual Inconsistencies Detected",
+                title="Generative AI Synthesis & Impossible Physics Detected",
                 layer="AI Visual Verification",
                 severity=severity,
-                confidence="Moderate Confidence",
-                explanation="; ".join(anomalies + artifacts) if (anomalies or artifacts) else "Visual anomalies flagged.",
-                why_flagged="Gemini Multimodal inspection observed unnatural geometry, optical light-source discordance, or synthesis residue.",
-                limitations="Vision models can misinterpret artistic stylized photography, macro lens blur, or unusual lighting as synthetic artifacts.",
+                confidence="High Confidence" if (is_ai_gen or has_ai_cues) else "Moderate Confidence",
+                explanation="; ".join(anomalies + artifacts) if (anomalies or artifacts) else "Generative AI stylistic signatures and synthetic rendering identified.",
+                why_flagged="Multimodal vision inspection detected characteristic text-to-image diffusion signatures, fantasy anatomical features, or impossible physical lighting.",
+                limitations="Vision models evaluate macroscopic rendering styles and geometric physics; highly realistic photorealistic deepfakes may require secondary metadata corroboration.",
                 evidence_source=f"Google Gemini Multimodal Vision ({settings_model})",
-                score_impact=min(max(score_impact, 0), 25)
+                score_impact=min(max(score_impact, 25), 35)
             ))
         else:
             evidence_items.append(EvidenceItem(
@@ -90,8 +126,8 @@ async def analyze_with_gemini(filepath: str) -> Tuple[AIVisualResult, List[Evide
                 layer="AI Visual Verification",
                 severity="informational",
                 confidence="Moderate Confidence",
-                explanation=f"Visual lighting ({lighting[:90]}...) and anatomical geometry appear physically consistent with natural photography.",
-                why_flagged="No overt visual artifacts or geometric mutations were identified by the multimodal inspector.",
+                explanation=f"Visual lighting ({lighting[:90]}...) and anatomical geometry appear physically consistent with natural camera photography.",
+                why_flagged="No overt generative AI synthesis artifacts or impossible physical mutations were identified by the multimodal inspector.",
                 limitations="State-of-the-art diffusion and GAN models can generate visually flawless subjects that pass macroscopic human and AI inspection.",
                 evidence_source=f"Google Gemini Multimodal Vision ({settings_model})",
                 score_impact=0

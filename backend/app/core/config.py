@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     
     # AI & Cloud Configuration
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-3.6-flash"
-    GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_FALLBACK_MODEL: str = "gemini-3.1-flash-lite"
     
     # Model Context Protocol (MCP) Server Configuration
     MCP_SEARCH_API_KEY: str = ""

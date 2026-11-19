@@ -157,6 +157,24 @@ def analyze_technical_properties(filepath: str) -> Tuple[TechnicalResult, List[E
             score_impact=0
         ))
 
+    # C. Color Saturation & Chromatic Dynamism Check
+    hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
+    saturation_mean = float(np.mean(hsv[:, :, 1]))
+    if saturation_mean > 115.0:
+        suspicious_indicators.append(f"Atypical hyper-saturation measured ({saturation_mean:.1f}/255), characteristic of generative AI fantasy rendering.")
+        evidence_items.append(EvidenceItem(
+            id="TECH-05",
+            title="Atypical Hyper-Saturation & Synthetic Chromatic Dynamics",
+            layer="Technical Forensics",
+            severity="medium",
+            confidence="Moderate Confidence",
+            explanation=f"Mean color saturation ({saturation_mean:.1f}/255) dramatically exceeds standard optical camera sensor color gamut profiles (typically 35–70).",
+            why_flagged="Text-to-image diffusion models frequently generate extreme chromatic dynamism, glowing fantasy hues, and hyper-saturated plasma palettes rarely produced by natural camera glass.",
+            limitations="Vibrant stage lighting, neon signage, or manual saturation boosting can also elevate color saturation.",
+            evidence_source="HSV Color Gamut Spatial Profiler",
+            score_impact=15
+        ))
+
     tech_result = TechnicalResult(
         noise_variance=round(noise_var, 2),
         laplacian_variance_blur=round(laplacian_var, 2),
