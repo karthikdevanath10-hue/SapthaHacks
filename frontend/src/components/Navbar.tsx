@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Database, Sparkles, User, LogOut, UploadCloud, LayoutDashboard } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, User, LogOut, UploadCloud, LayoutDashboard, PanelLeftOpen } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface NavbarProps {
@@ -9,6 +9,7 @@ interface NavbarProps {
   onOpenAuth: () => void;
   onSignOut: () => void;
   apiStatus: { healthy: boolean; supabase: boolean; gemini: boolean };
+  onToggleDashboardDrawer?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,26 +18,40 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onOpenAuth,
   onSignOut,
-  apiStatus
+  apiStatus,
+  onToggleDashboardDrawer
 }) => {
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/90 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
-        {/* Brand */}
-        <div 
-          onClick={() => setCurrentTab('landing')}
-          className="flex items-center space-x-3 cursor-pointer group"
-        >
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
-            <ShieldCheck className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-lg tracking-tight text-slate-900">Truth<span className="text-blue-600">Lens</span></span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">ENTERPRISE</span>
+        {/* Brand & Left Sliding Dashboard Toggle */}
+        <div className="flex items-center space-x-3">
+          {onToggleDashboardDrawer && (
+            <button
+              onClick={onToggleDashboardDrawer}
+              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-600 hover:border-blue-200 transition flex items-center space-x-1.5 text-xs font-semibold shadow-xs cursor-pointer group"
+              title="Open Left Sliding Dashboard"
+            >
+              <PanelLeftOpen className="w-4 h-4 text-blue-600 group-hover:scale-110 transition" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </button>
+          )}
+
+          <div 
+            onClick={() => setCurrentTab('landing')}
+            className="flex items-center space-x-3 cursor-pointer group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
+              <ShieldCheck className="w-5 h-5 text-white" />
             </div>
-            <p className="text-[10px] text-slate-500 hidden sm:block font-medium">Multimodal Digital Forensics & Verification</p>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-lg tracking-tight text-slate-900">Truth<span className="text-blue-600">Lens</span></span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">ENTERPRISE</span>
+              </div>
+              <p className="text-[10px] text-slate-500 hidden sm:block font-medium">Multimodal Digital Forensics & Verification</p>
+            </div>
           </div>
         </div>
 

@@ -1,14 +1,15 @@
 import React from 'react';
 import { 
   ShieldCheck, Eye, Layers, Sparkles, Binary, MessageSquare, 
-  ArrowRight, FileCheck, CheckCircle2, Lock, Cpu, Database 
+  ArrowRight, FileCheck, CheckCircle2, Lock, Cpu, Database, PanelLeftOpen 
 } from 'lucide-react';
 
 interface LandingPageProps {
   onStart: () => void;
+  onOpenDashboard?: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onOpenDashboard }) => {
   return (
     <div className="space-y-20 pb-20 max-w-7xl mx-auto">
       
@@ -46,6 +47,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             <span>Start Forensic Investigation</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
           </button>
+
+          {onOpenDashboard && (
+            <button
+              onClick={onOpenDashboard}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm flex items-center justify-center space-x-2 shadow-xs transition cursor-pointer"
+            >
+              <PanelLeftOpen className="w-4 h-4 text-blue-600" />
+              <span>Open Case Dashboard</span>
+            </button>
+          )}
         </div>
 
         {/* Quick Highlights Row */}

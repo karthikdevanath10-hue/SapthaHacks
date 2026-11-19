@@ -5,15 +5,17 @@ import { UploadStudio } from './components/UploadStudio';
 import { DashboardView } from './components/DashboardView';
 import { AuthModal } from './components/AuthModal';
 import { EvidenceScorecardView } from './components/EvidenceScorecardView';
+import { SlidingDashboardDrawer } from './components/SlidingDashboardDrawer';
 import { UserProfile, FullAnalysisResponse } from './types';
 import { authService } from './services/supabase';
 import { apiService } from './services/api';
-import { Eye, Shield, Terminal, ArrowLeft } from 'lucide-react';
+import { Eye, Shield, Terminal, ArrowLeft, PanelLeftOpen } from 'lucide-react';
 
 export function App() {
   const [currentTab, setCurrentTab] = useState<'landing' | 'studio' | 'dashboard' | 'scorecard'>('landing');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isDashboardDrawerOpen, setIsDashboardDrawerOpen] = useState(false);
   const [inspectingAnalysis, setInspectingAnalysis] = useState<FullAnalysisResponse | null>(null);
 
   const [apiStatus, setApiStatus] = useState({
@@ -70,14 +72,32 @@ export function App() {
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
         apiStatus={apiStatus}
+        onToggleDashboardDrawer={() => setIsDashboardDrawerOpen(prev => !prev)}
       />
+
+      {/* Persistent Left Floating Dashboard Dock Button */}
+      {!isDashboardDrawerOpen && (
+        <button
+          onClick={() => setIsDashboardDrawerOpen(true)}
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-white hover:bg-blue-50 border-y border-r border-slate-300 text-slate-700 hover:text-blue-600 py-3.5 px-1.5 rounded-r-xl shadow-lg transition group flex flex-col items-center gap-1.5 cursor-pointer hover:shadow-xl"
+          title="Open Left Side Dashboard"
+        >
+          <PanelLeftOpen className="w-4 h-4 text-blue-600 group-hover:scale-110 transition" />
+          <span className="text-[10px] font-bold tracking-widest [writing-mode:vertical-lr] rotate-180 text-slate-500 group-hover:text-blue-600">
+            DASHBOARD
+          </span>
+        </button>
+      )}
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 w-full">
         
         {/* Landing Page */}
         {currentTab === 'landing' && (
-          <LandingPage onStart={() => setCurrentTab('studio')} />
+          <LandingPage 
+            onStart={() => setCurrentTab('studio')} 
+            onOpenDashboard={() => setIsDashboardDrawerOpen(true)}
+          />
         )}
 
         {/* Upload & Forensics Studio */}
@@ -87,6 +107,7 @@ export function App() {
             onAnalysisComplete={(res) => {
               // Stay in studio view or set state
             }}
+            onOpenDashboardDrawer={() => setIsDashboardDrawerOpen(true)}
           />
         )}
 
@@ -113,6 +134,23 @@ export function App() {
         )}
 
       </main>
+
+      {/* Left-Side Sliding Dashboard Drawer */}
+      <SlidingDashboardDrawer
+        isOpen={isDashboardDrawerOpen}
+        onClose={() => setIsDashboardDrawerOpen(false)}
+        onOpenInvestigation={handleOpenInvestigationDetails}
+        onNewInvestigation={() => {
+          setInspectingAnalysis(null);
+          setCurrentTab('studio');
+          setIsDashboardDrawerOpen(false);
+        }}
+        onNavigateToFullDashboard={() => {
+          setInspectingAnalysis(null);
+          setCurrentTab('dashboard');
+          setIsDashboardDrawerOpen(false);
+        }}
+      />
 
       {/* Auth Modal */}
       <AuthModal

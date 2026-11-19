@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { 
   UploadCloud, Image as ImageIcon, Video, Mic, FileText, CheckCircle2, 
   AlertCircle, Loader2, ArrowRight, RefreshCw, Layers, ShieldCheck, Download, Trash2,
-  Play, Volume2, Sparkles, FileEdit, Square, Radio, Zap
+  Play, Volume2, Sparkles, FileEdit, Square, Radio, Zap, PanelLeftOpen
 } from 'lucide-react';
 import { FullAnalysisResponse, UserProfile, MediaModality } from '../types';
 import { apiService } from '../services/api';
@@ -18,6 +18,7 @@ import { CaptionCrossVerifier } from './CaptionCrossVerifier';
 interface UploadStudioProps {
   currentUser: UserProfile | null;
   onAnalysisComplete?: (result: FullAnalysisResponse) => void;
+  onOpenDashboardDrawer?: () => void;
 }
 
 const MODALITY_STEPS: Record<MediaModality, string[]> = {
@@ -55,7 +56,11 @@ const MODALITY_STEPS: Record<MediaModality, string[]> = {
   ]
 };
 
-export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnalysisComplete }) => {
+export const UploadStudio: React.FC<UploadStudioProps> = ({ 
+  currentUser, 
+  onAnalysisComplete,
+  onOpenDashboardDrawer 
+}) => {
   const [selectedModality, setSelectedModality] = useState<MediaModality>('image');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -261,27 +266,41 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
               </p>
             </div>
 
-            {/* Corporate Modality Switcher */}
-            <div className="flex items-center flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs">
-              {[
-                { id: 'image', label: 'Image Forensics', icon: <ImageIcon className="w-3.5 h-3.5" /> },
-                { id: 'video', label: 'Video Deepfake', icon: <Video className="w-3.5 h-3.5" /> },
-                { id: 'audio', label: 'Voice / Audio', icon: <Mic className="w-3.5 h-3.5" /> },
-                { id: 'text', label: 'Text & Narrative', icon: <FileText className="w-3.5 h-3.5" /> },
-              ].map(tab => (
+            {/* Corporate Modality Switcher & Left Dashboard Trigger */}
+            <div className="flex items-center flex-wrap gap-2.5">
+              {onOpenDashboardDrawer && (
                 <button
-                  key={tab.id}
-                  onClick={() => handleModalityChange(tab.id as MediaModality)}
-                  className={`px-3 py-1.5 rounded-lg font-medium flex items-center space-x-2 transition cursor-pointer ${
-                    selectedModality === tab.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
-                  }`}
+                  type="button"
+                  onClick={onOpenDashboardDrawer}
+                  className="px-3.5 py-1.5 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer shadow-xs"
+                  title="Open Left Side Sliding Dashboard"
                 >
-                  {tab.icon}
-                  <span>{tab.label}</span>
+                  <PanelLeftOpen className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Case Dashboard</span>
                 </button>
-              ))}
+              )}
+
+              <div className="flex items-center flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs">
+                {[
+                  { id: 'image', label: 'Image Forensics', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                  { id: 'video', label: 'Video Deepfake', icon: <Video className="w-3.5 h-3.5" /> },
+                  { id: 'audio', label: 'Voice / Audio', icon: <Mic className="w-3.5 h-3.5" /> },
+                  { id: 'text', label: 'Text & Narrative', icon: <FileText className="w-3.5 h-3.5" /> },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleModalityChange(tab.id as MediaModality)}
+                    className={`px-3 py-1.5 rounded-lg font-medium flex items-center space-x-2 transition cursor-pointer ${
+                      selectedModality === tab.id
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                    }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -647,6 +666,17 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
             <div className="flex items-center space-x-2">
+              {onOpenDashboardDrawer && (
+                <button
+                  type="button"
+                  onClick={onOpenDashboardDrawer}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-blue-600 hover:bg-slate-50 text-xs font-semibold flex items-center space-x-1.5 shadow-sm transition cursor-pointer"
+                  title="Open Left Side Sliding Dashboard"
+                >
+                  <PanelLeftOpen className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Dashboard</span>
+                </button>
+              )}
               <button
                 onClick={handleReset}
                 className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold flex items-center space-x-1.5 shadow-sm transition cursor-pointer"
