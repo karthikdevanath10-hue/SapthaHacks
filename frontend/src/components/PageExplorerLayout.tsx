@@ -279,7 +279,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#070314] text-white relative overflow-hidden font-sans select-none flex flex-col justify-between">
+    <div className="h-screen max-h-screen bg-[#070314] text-white relative overflow-hidden font-sans select-none flex flex-col justify-between">
       
       {/* Ambient Neon Glow Gradients */}
       <div className="absolute top-0 left-0 w-[550px] h-[550px] bg-purple-600/15 rounded-full blur-[130px] pointer-events-none" />
@@ -289,7 +289,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       {/* ======================================================== */}
       {/* TOP HEADER BAR (Matching user screenshot) */}
       {/* ======================================================== */}
-      <header className="relative z-20 px-6 sm:px-10 pt-6 flex items-center justify-between">
+      <header className="relative z-20 px-6 sm:px-10 py-3.5 flex items-center justify-between flex-shrink-0">
         
         {/* Brand & Explorer Title */}
         <div className="flex items-center space-x-3.5">
@@ -349,23 +349,23 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       {/* ======================================================== */}
       {/* MAIN VIEW: LEFT ARC DIAL + RIGHT GLASS WORKSPACE */}
       {/* ======================================================== */}
-      <main className="relative z-10 flex-1 px-4 sm:px-8 py-6 flex flex-col lg:flex-row items-stretch gap-6 max-w-7xl mx-auto w-full">
+      <main className="relative z-10 flex-1 px-4 sm:px-8 pb-4 flex flex-col lg:flex-row items-stretch gap-6 max-w-7xl mx-auto w-full min-h-0 overflow-hidden">
         
         {/* ====================================================== */}
-        {/* LEFT HALF: SEMI-CIRCULAR GLOWING ARC DIAL */}
+        {/* LEFT HALF: SEMI-CIRCULAR GLOWING ARC DIAL (CONSTANT & PINNED) */}
         {/* ====================================================== */}
-        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 flex flex-col justify-center relative">
+        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 flex flex-col justify-center relative sticky lg:static top-0 z-20 select-none">
           
           {/* Glowing Semi-Circle Arc Boundary Frame */}
-          <div className="relative p-6 sm:p-8 rounded-3xl lg:rounded-r-[180px] bg-slate-950/60 border border-purple-500/30 lg:border-r-2 lg:border-r-purple-400/80 shadow-[0_0_35px_rgba(168,85,247,0.25)] backdrop-blur-2xl">
+          <div className="relative p-5 sm:p-7 rounded-3xl lg:rounded-r-[180px] bg-slate-950/70 border border-purple-500/30 lg:border-r-2 lg:border-r-purple-400/80 shadow-[0_0_35px_rgba(168,85,247,0.25)] backdrop-blur-2xl">
             
             {/* Glowing Neon Dot on the Arc Perimeter */}
             <div className="hidden lg:block absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-[0_0_16px_#c084fc] ring-4 ring-purple-500/50 animate-pulse" />
 
-            <div className="space-y-6">
+            <div className="space-y-5">
               
               {/* Dial Title */}
-              <div className="flex items-center justify-between border-b border-purple-500/20 pb-3">
+              <div className="flex items-center justify-between border-b border-purple-500/20 pb-2.5">
                 <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
                   Select Capability
                 </span>
@@ -453,16 +453,16 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
         {/* ====================================================== */}
         {/* RIGHT HALF: EXPANDED WORKSPACE GLASS PANEL (OPENS ON TOUCH) */}
         {/* ====================================================== */}
-        <div className="flex-1 bg-slate-950/50 border border-purple-500/30 rounded-3xl shadow-[0_0_40px_rgba(147,51,234,0.18)] backdrop-blur-2xl p-6 lg:p-8 flex flex-col justify-between relative overflow-hidden">
+        <div className="flex-1 bg-slate-950/50 border border-purple-500/30 rounded-3xl shadow-[0_0_40px_rgba(147,51,234,0.18)] backdrop-blur-2xl p-5 lg:p-7 flex flex-col justify-between relative overflow-hidden h-full min-h-0">
           
           {/* Subtle Ambient Scenic Background (Matching image) */}
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-slate-950/30 to-indigo-950/20 pointer-events-none" />
 
           {/* Workspace Content */}
-          <div className="relative z-10 flex-1 flex flex-col">
+          <div className="relative z-10 flex-1 flex flex-col min-h-0">
             
             {/* Header of Active Page */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-purple-500/20 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-purple-500/20 gap-3 flex-shrink-0">
               <div>
                 <div className="flex items-center space-x-2.5">
                   <span className="text-xs uppercase font-mono font-bold text-purple-400 tracking-wider">
@@ -492,8 +492,8 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
               </div>
             </div>
 
-            {/* DYNAMIC CONTENT AREA */}
-            <div className="flex-1 pt-6 overflow-y-auto">
+            {/* DYNAMIC CONTENT AREA - ONLY THIS SCROLLS! */}
+            <div className="flex-1 pt-4 overflow-y-auto pr-2 custom-scrollbar min-h-0">
               
               {/* =================================================== */}
               {/* 1. IMAGE FORENSICS WORKSPACE */}
@@ -1140,7 +1140,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
           </div>
 
           {/* Footer Status Line */}
-          <div className="relative z-10 pt-4 mt-6 border-t border-purple-500/20 flex flex-col sm:flex-row items-center justify-between text-[11px] text-purple-300/70 gap-2">
+          <div className="relative z-10 pt-3 mt-3 border-t border-purple-500/20 flex flex-col sm:flex-row items-center justify-between text-[11px] text-purple-300/70 gap-2 flex-shrink-0">
             <div className="flex items-center space-x-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span>FastAPI Backend • Gemini 3.6 • Supabase PostgreSQL</span>
