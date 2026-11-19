@@ -4,7 +4,7 @@ import {
   Database, Globe, BarChart3, Search, User, Download, Trash2, 
   RefreshCw, Plus, ArrowRight, CheckCircle2, AlertTriangle, 
   ShieldAlert, Sparkles, FolderOpen, ChevronRight, Layers,
-  UploadCloud, Play, Square, Radio, ExternalLink, Zap
+  UploadCloud, Play, Square, Radio, ExternalLink, Zap, X
 } from 'lucide-react';
 import { InvestigationSummary, FullAnalysisResponse, MediaModality, UserProfile } from '../types';
 import { apiService } from '../services/api';
@@ -40,7 +40,9 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   const [investigations, setInvestigations] = useState<InvestigationSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isDialCollapsed, setIsDialCollapsed] = useState<boolean>(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Modality file upload / analysis states for the right pane
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -107,6 +109,16 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
     fetchStorage();
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const detectModality = (name: string): MediaModality => {
     const ext = name.split('.').pop()?.toLowerCase() || '';
     if (['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext)) return 'video';
@@ -114,6 +126,30 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
     if (['txt'].includes(ext)) return 'text';
     return 'image';
   };
+
+  const searchResults = searchQuery.trim()
+    ? investigations.filter(inv => {
+        const q = searchQuery.toLowerCase().trim();
+        const name = (inv.image_name || '').toLowerCase();
+        const id = (inv.id || '').toLowerCase();
+        const hash = (inv.image_hash || '').toLowerCase();
+        const caption = (inv.caption || '').toLowerCase();
+        const modality = detectModality(inv.image_name);
+        const assessment = (inv.assessment || '').toLowerCase();
+        return (
+          name.includes(q) ||
+          id.includes(q) ||
+          hash.includes(q) ||
+          caption.includes(q) ||
+          modality.includes(q) ||
+          assessment.includes(q)
+        );
+      })
+    : [];
+
+  const matchingStorageFiles = (searchQuery.trim() && storageStats?.files)
+    ? storageStats.files.filter(f => f.filename.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+    : [];
 
   const counts = {
     image: investigations.filter(i => detectModality(i.image_name) === 'image').length,
@@ -440,16 +476,147 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
               </button>
             )}
 
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-purple-400/60 absolute left-3.5 top-2.5" />
+            {/* Search Input Container with Live Instant Dropdown */}
+            <div ref={searchContainerRef} className="relative flex-1">
+              <Search className="w-4 h-4 text-purple-400/60 absolute left-3.5 top-2.5 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search forensic registry..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-900/80 border border-purple-500/30 rounded-full text-xs text-white placeholder:text-purple-400/50 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30 transition shadow-inner"
+                onFocus={() => setIsSearchOpen(true)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchOpen(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsSearchOpen(false);
+                  } else if (e.key === 'Enter' && searchResults.length > 0) {
+                    onOpenInvestigation(searchResults[0].id);
+                    setIsSearchOpen(false);
+                  }
+                }}
+                placeholder="Search forensic registry by file, SHA, ID..."
+                className="w-full pl-10 pr-9 py-2 bg-slate-900/80 border border-purple-500/30 rounded-full text-xs text-white placeholder:text-purple-400/50 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30 transition shadow-inner"
               />
+
+              {/* Clear search button */}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIsSearchOpen(false);
+                  }}
+                  className="absolute right-3 top-2 text-purple-400/70 hover:text-white transition p-0.5 cursor-pointer"
+                  title="Clear search query"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Live Instant Search Results Flyout */}
+              {isSearchOpen && searchQuery.trim() && (
+                <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-slate-950/95 border border-purple-500/40 rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.85),0_0_30px_rgba(168,85,247,0.3)] backdrop-blur-2xl p-3 max-h-[420px] overflow-y-auto custom-scrollbar">
+                  
+                  {/* Dropdown Header */}
+                  <div className="flex items-center justify-between px-2 pb-2 border-b border-purple-500/20 text-[11px] font-mono text-purple-300/80">
+                    <span>Forensic Registry Matches ({searchResults.length})</span>
+                    <span className="text-[10px] text-purple-400/60">Press Enter ↵ to inspect top case</span>
+                  </div>
+
+                  {searchResults.length > 0 ? (
+                    <div className="space-y-1.5 pt-2">
+                      {searchResults.slice(0, 8).map((item) => {
+                        const modality = detectModality(item.image_name);
+                        const ModalityIcon = modality === 'video' ? Video : modality === 'audio' ? Mic : modality === 'text' ? FileText : ImageIcon;
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              onOpenInvestigation(item.id);
+                              setIsSearchOpen(false);
+                            }}
+                            className="p-2.5 rounded-xl border border-purple-500/10 hover:border-purple-400/60 bg-slate-900/60 hover:bg-purple-900/30 transition flex items-center justify-between gap-3 cursor-pointer group"
+                          >
+                            <div className="flex items-center space-x-3 min-w-0 flex-1">
+                              <div className="w-8 h-8 rounded-lg bg-purple-950/80 border border-purple-500/30 flex items-center justify-center flex-shrink-0 text-purple-300 group-hover:text-white group-hover:border-purple-400 transition">
+                                <ModalityIcon className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <h5 className="text-xs font-bold text-white group-hover:text-purple-300 transition truncate">
+                                    {item.image_name}
+                                  </h5>
+                                  <span className="text-[9px] uppercase font-mono px-1.5 py-0.2 rounded bg-purple-900/60 text-purple-300 border border-purple-500/30">
+                                    {modality}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] font-mono text-purple-400/70 truncate mt-0.5">
+                                  Case #{item.id.slice(0, 8)} • SHA: {item.image_hash?.slice(0, 10)}... • {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2 flex-shrink-0">
+                              {getScoreBadge(item.indicator_score || 0)}
+                              <ChevronRight className="w-4 h-4 text-purple-400/50 group-hover:text-purple-300 group-hover:translate-x-0.5 transition" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="py-6 px-4 text-center space-y-2">
+                      <p className="text-xs text-purple-200 font-semibold">
+                        No forensic cases found for "{searchQuery}"
+                      </p>
+                      <p className="text-[11px] text-purple-400/60 font-mono">
+                        Try searching by exact file name, SHA-256 hash prefix, or Case ID.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Matching Files in Storage Vault */}
+                  {matchingStorageFiles.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-purple-500/20 space-y-1">
+                      <span className="text-[10px] uppercase font-mono text-purple-400/80 px-2">Storage Vault Matches:</span>
+                      {matchingStorageFiles.slice(0, 3).map((f, i) => (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            setActiveOption('storage');
+                            setIsSearchOpen(false);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-900/40 hover:bg-purple-900/20 text-xs flex items-center justify-between text-purple-200 transition cursor-pointer"
+                        >
+                          <span className="truncate">{f.filename}</span>
+                          <span className="text-[10px] font-mono text-purple-400/70">{(f.size_bytes / 1024).toFixed(1)} KB</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Quick Action: Search MCP Web Intelligence */}
+                  <div className="mt-2 pt-2 border-t border-purple-500/20">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMcpQuery(searchQuery);
+                        setActiveOption('mcp');
+                        setIsSearchOpen(false);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-purple-900/40 hover:bg-purple-900/80 border border-purple-500/30 text-[11px] text-purple-200 hover:text-white flex items-center justify-between transition cursor-pointer"
+                    >
+                      <span className="flex items-center space-x-2">
+                        <Globe className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Query MCP Web & OSINT Registry for "<strong>{searchQuery}</strong>"</span>
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 text-purple-400" />
+                    </button>
+                  </div>
+
+                </div>
+              )}
             </div>
           </div>
 
@@ -623,7 +790,11 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                       Recent Image Investigations ({counts.image})
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {investigations.filter(i => detectModality(i.image_name) === 'image').slice(0, 4).map(item => (
+                      {investigations
+                        .filter(i => detectModality(i.image_name) === 'image')
+                        .filter(i => !searchQuery || i.image_name?.toLowerCase().includes(searchQuery.toLowerCase()) || i.id?.toLowerCase().includes(searchQuery.toLowerCase()) || i.image_hash?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .slice(0, 6)
+                        .map(item => (
                         <div
                           key={item.id}
                           onClick={() => onOpenInvestigation(item.id)}
@@ -748,7 +919,11 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                       Recent Video Cases ({counts.video})
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {investigations.filter(i => detectModality(i.image_name) === 'video').slice(0, 4).map(item => (
+                      {investigations
+                        .filter(i => detectModality(i.image_name) === 'video')
+                        .filter(i => !searchQuery || i.image_name?.toLowerCase().includes(searchQuery.toLowerCase()) || i.id?.toLowerCase().includes(searchQuery.toLowerCase()) || i.image_hash?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .slice(0, 6)
+                        .map(item => (
                         <div
                           key={item.id}
                           onClick={() => onOpenInvestigation(item.id)}
@@ -895,7 +1070,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-base font-bold text-white">Forensic Audit Trail & Chain of Custody</h3>
-                      <p className="text-xs text-purple-300/80">ISO 27037 digital evidence custody registry with SHA-256 validation.</p>
+                      <p className="text-xs text-purple-300/80">Digital evidence custody registry with cryptographic SHA-256 validation.</p>
                     </div>
                     <span className="text-xs font-mono text-purple-400">
                       {investigations.length} Cases Recorded
@@ -915,7 +1090,16 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                       </thead>
                       <tbody className="divide-y divide-purple-500/10 font-mono">
                         {investigations
-                          .filter(i => !searchQuery || i.image_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .filter(i => {
+                            if (!searchQuery) return true;
+                            const q = searchQuery.toLowerCase().trim();
+                            return (
+                              i.image_name?.toLowerCase().includes(q) ||
+                              i.id?.toLowerCase().includes(q) ||
+                              i.image_hash?.toLowerCase().includes(q) ||
+                              detectModality(i.image_name).includes(q)
+                            );
+                          })
                           .map((inv) => (
                             <tr
                               key={inv.id}
@@ -992,7 +1176,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                         <span>{storageStats?.supabase_connected ? 'Supabase Synced' : 'Local Fallback'}</span>
                       </p>
-                      <p className="text-[11px] text-purple-300/70">ISO 27037 compliance enabled</p>
+                      <p className="text-[11px] text-purple-300/70">Secure cryptographic custody</p>
                     </div>
                   </div>
 
@@ -1000,7 +1184,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-purple-300">
-                        Files in Forensic Storage Vault
+                        Files in Forensic Storage Vault {searchQuery ? `(matching "${searchQuery}")` : ''}
                       </h4>
                       <button
                         onClick={fetchStorage}
@@ -1013,7 +1197,9 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
                     <div className="border border-purple-500/30 rounded-xl overflow-hidden text-xs max-h-64 overflow-y-auto divide-y divide-purple-500/10 font-mono bg-slate-950/60">
                       {storageStats?.files && storageStats.files.length > 0 ? (
-                        storageStats.files.map((file, idx) => (
+                        storageStats.files
+                          .filter(f => !searchQuery || f.filename?.toLowerCase().includes(searchQuery.toLowerCase()) || f.category?.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .map((file, idx) => (
                           <div key={idx} className="p-3 flex items-center justify-between hover:bg-purple-900/20 transition">
                             <div className="flex items-center space-x-2.5 truncate">
                               <FolderOpen className="w-4 h-4 text-purple-400 flex-shrink-0" />
