@@ -1,25 +1,109 @@
 import React from 'react';
 import { AudioDiagnostics } from '../types';
-import { Mic, Volume2, Radio, Activity, AlertTriangle, CheckCircle, ShieldAlert } from 'lucide-react';
+import { Mic, Volume2, Radio, Activity, AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 interface AudioViewerProps {
   audio: AudioDiagnostics;
 }
 
 export const AudioViewer: React.FC<AudioViewerProps> = ({ audio }) => {
+  const isSuspicious = audio.unnatural_pause_detected || audio.spectral_cutoff_observed || audio.synthetic_prosody_score > 40;
+
   return (
     <div className="space-y-6">
+      
+      {/* Header */}
       <div className="pb-2 border-b border-slate-800">
         <h3 className="text-lg font-bold text-white flex items-center space-x-2">
           <Mic className="w-5 h-5 text-cyan-400" />
           <span>Layer 2: Acoustic & Synthetic Voice Forensics</span>
         </h3>
         <p className="text-xs text-slate-400">
-          Analysis of vocal prosody, respiratory pause frequency, neural vocoder spectral roll-off, and cloned speaker timbre
+          Inspection of vocal prosody, respiratory micro-pauses, neural vocoder frequency roll-off, and cloned speaker timbre
         </p>
       </div>
 
-      {/* Grid of Audio Properties */}
+      {/* Top 10-Second Summary Pill for Jury Presentation */}
+      <div className={`p-4 rounded-xl border ${
+        isSuspicious ? 'bg-amber-950/30 border-amber-500/40 text-amber-200' : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+      } flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs`}>
+        <div className="flex items-center space-x-3">
+          {isSuspicious ? (
+            <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+          )}
+          <div>
+            <strong className="text-white text-sm block">
+              {isSuspicious ? 'Acoustic Audio Displays Synthetic Voice Cloning Signatures' : 'Acoustic Harmonics & Vocal Cadence Verified Organic'}
+            </strong>
+            <span className="text-slate-300">
+              {isSuspicious 
+                ? 'Signal displays continuous un-paused speech or unnatural high-frequency vocoder cutoff.'
+                : 'Recording displays natural human breathing micro-pauses and organic room acoustics.'}
+            </span>
+          </div>
+        </div>
+
+        <span className={`px-3 py-1 rounded-full font-bold text-xs self-start sm:self-auto border ${
+          isSuspicious ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+        }`}>
+          {isSuspicious ? 'NEEDS REVIEW' : 'PASSED'}
+        </span>
+      </div>
+
+      {/* Visual Checklist for Presentation */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-sans text-xs">
+        <div className="glass-panel p-3.5 rounded-xl border border-slate-800 space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-mono block">Check 1: Breathing Pauses</span>
+          <div className="flex items-center space-x-2">
+            {audio.unnatural_pause_detected ? (
+              <span className="text-rose-400 font-bold flex items-center space-x-1">
+                <AlertTriangle className="w-4 h-4" /> <span>No Natural Breaths</span>
+              </span>
+            ) : (
+              <span className="text-emerald-400 font-bold flex items-center space-x-1">
+                <CheckCircle2 className="w-4 h-4" /> <span>Natural Human Pauses</span>
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400">AI voice generators often speak continuously without taking a breath.</p>
+        </div>
+
+        <div className="glass-panel p-3.5 rounded-xl border border-slate-800 space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-mono block">Check 2: Frequency Spectrum</span>
+          <div className="flex items-center space-x-2">
+            {audio.spectral_cutoff_observed ? (
+              <span className="text-amber-400 font-bold flex items-center space-x-1">
+                <AlertTriangle className="w-4 h-4" /> <span>Artificial Vocoder Cutoff</span>
+              </span>
+            ) : (
+              <span className="text-emerald-400 font-bold flex items-center space-x-1">
+                <CheckCircle2 className="w-4 h-4" /> <span>Full Acoustic Bandwidth</span>
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400">Neural voice models cut off frequencies abruptly above 12–16 kHz.</p>
+        </div>
+
+        <div className="glass-panel p-3.5 rounded-xl border border-slate-800 space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-mono block">Check 3: Voice Clone Timbre</span>
+          <div className="flex items-center space-x-2">
+            {audio.synthetic_prosody_score > 40 ? (
+              <span className="text-rose-400 font-bold flex items-center space-x-1">
+                <ShieldAlert className="w-4 h-4" /> <span>Synthetic Voice Model</span>
+              </span>
+            ) : (
+              <span className="text-emerald-400 font-bold flex items-center space-x-1">
+                <CheckCircle2 className="w-4 h-4" /> <span>Natural Inflection</span>
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400">Gemini listens to emotion, throat resonance, and room acoustics.</p>
+        </div>
+      </div>
+
+      {/* Grid of Audio Technical Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-xs">
         
         {/* Stream Properties */}
@@ -33,7 +117,7 @@ export const AudioViewer: React.FC<AudioViewerProps> = ({ audio }) => {
           <p className="text-cyan-400">{audio.bitrate_kbps ? `${audio.bitrate_kbps} kbps` : 'Standard Bitrate'}</p>
         </div>
 
-        {/* Duration */}
+        {/* Playback Duration */}
         <div className="glass-panel p-4 rounded-xl border border-slate-800 space-y-1">
           <span className="text-slate-400 text-[10px] uppercase tracking-wider flex items-center space-x-1">
             <Volume2 className="w-3 h-3 text-cyan-400" />
@@ -83,19 +167,6 @@ export const AudioViewer: React.FC<AudioViewerProps> = ({ audio }) => {
         </div>
 
       </div>
-
-      {/* Unnatural Pauses / Respiratory Alert */}
-      {audio.unnatural_pause_detected && (
-        <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 text-xs space-y-1">
-          <div className="flex items-center space-x-2 text-amber-400 font-bold">
-            <AlertTriangle className="w-4 h-4" />
-            <span>Acoustic Cadence Anomaly Flagged</span>
-          </div>
-          <p className="text-amber-200">
-            Audio exhibits continuous speech envelope without physiological human breathing intervals (micro-pauses). This is a frequent signature of concatenated synthetic neural speech.
-          </p>
-        </div>
-      )}
 
       {/* Observations */}
       <div className="glass-panel p-4 rounded-xl border border-slate-800 text-xs space-y-2">
