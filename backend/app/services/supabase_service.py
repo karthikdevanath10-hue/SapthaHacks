@@ -1,9 +1,9 @@
 import os
 import json
+import httpx
 from typing import List, Optional, Dict, Any
 from app.core.config import settings
 
-# In-memory / local fallback store for seamless offline/development hackathon running
 LOCAL_STORE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "local_investigations.json")
 
 def _load_local_store() -> List[Dict[str, Any]]:
@@ -24,26 +24,25 @@ def _save_local_store(data: List[Dict[str, Any]]):
 
 class SupabaseService:
     def __init__(self):
-        self.client = None
-        if settings.SUPABASE_URL and (settings.SUPABASE_KEY or settings.SUPABASE_SERVICE_ROLE_KEY):
-            try:
-                from supabase import create_client, Client
-                key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
-                self.client: Optional[Client] = create_client(settings.SUPABASE_URL, key)
-            except Exception as e:
-                print(f"[SupabaseService] Failed to initialize client: {e}")
-                self.client = None
+        self.url = settings.SUPABASE_URL.rstrip("/")
+        self.key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
+        self.rest_url = f"{self.url}/rest/v1" if self.url else ""
+        self.headers = {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        } if self.key else {}
 
     def is_connected(self) -> bool:
-        return self.client is not None
+        return bool(self.url and self.key)
 
     async def save_investigation(self, analysis_data: Dict[str, Any], user_id: Optional[str] = None) -> bool:
         inv_id = analysis_data["investigation_id"]
-        
-        # 1. If Supabase is connected, write to Supabase tables
-        if self.client:
+
+        # 1. Direct REST or SDK to Supabase
+        if self.is_connected():
             try:
-                # Insert into investigations
                 inv_row = {
                     "id": inv_id,
                     "user_id": user_id,
@@ -57,9 +56,7 @@ class SupabaseService:
                     "indicator_score": analysis_data["indicator_score"],
                     "created_at": analysis_data["created_at"]
                 }
-                self.client.table("investigations").insert(inv_row).execute()
 
-                # Insert into analysis_results
                 res_row = {
                     "investigation_id": inv_id,
                     "metadata_results": analysis_data["metadata"],
@@ -70,32 +67,42 @@ class SupabaseService:
                     "limitations": analysis_data["limitations"],
                     "created_at": analysis_data["created_at"]
                 }
-                self.client.table("analysis_results").insert(res_row).execute()
-                return True
+
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    # Insert investigations
+                    r1 = await client.post(f"{self.rest_url}/investigations", headers=self.headers, json=inv_row)
+                    # Insert analysis_results
+                    r2 = await client.post(f"{self.rest_url}/analysis_results", headers=self.headers, json=res_row)
+
+                if r1.status_code in [200, 201] and r2.status_code in [200, 201]:
+                    return True
+                else:
+                    print(f"[SupabaseService] REST status: inv={r1.status_code}, res={r2.status_code}")
             except Exception as e:
-                print(f"[SupabaseService] Error saving to Supabase: {e}. Falling back to local store.")
+                print(f"[SupabaseService] Error saving to Supabase: {e}")
 
         # 2. Local fallback store
         items = _load_local_store()
-        # Prepend new investigation
-        items = [i for i in items if i["investigation_id"] != inv_id]
+        items = [i for i in items if i.get("investigation_id") != inv_id]
         items.insert(0, analysis_data)
         _save_local_store(items[:100])
         return True
 
     async def list_investigations(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        if self.client:
+        if self.is_connected():
             try:
-                query = self.client.table("investigations").select("*").order("created_at", desc=True)
+                url = f"{self.rest_url}/investigations?select=*&order=created_at.desc"
                 if user_id:
-                    query = query.eq("user_id", user_id)
-                res = query.execute()
-                return res.data or []
+                    url += f"&user_id=eq.{user_id}"
+
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    r = await client.get(url, headers=self.headers)
+                    if r.status_code == 200:
+                        return r.json()
             except Exception as e:
-                print(f"[SupabaseService] Error querying Supabase: {e}. Using local store.")
+                print(f"[SupabaseService] Error listing from Supabase: {e}")
 
         items = _load_local_store()
-        # Format matching investigations table
         summary_list = []
         for i in items:
             summary_list.append({
@@ -112,31 +119,38 @@ class SupabaseService:
         return summary_list
 
     async def get_investigation_details(self, investigation_id: str) -> Optional[Dict[str, Any]]:
-        if self.client:
+        if self.is_connected():
             try:
-                inv = self.client.table("investigations").select("*").eq("id", investigation_id).single().execute()
-                res = self.client.table("analysis_results").select("*").eq("investigation_id", investigation_id).single().execute()
-                if inv.data and res.data:
-                    return {
-                        "investigation_id": inv.data["id"],
-                        "image_name": inv.data["image_name"],
-                        "image_hash": inv.data["image_hash"],
-                        "assessment": inv.data["assessment"],
-                        "indicator_score": inv.data["indicator_score"],
-                        "created_at": inv.data["created_at"],
-                        "metadata": res.data.get("metadata_results", {}),
-                        "technical": res.data.get("technical_results", {}),
-                        "ai_analysis": res.data.get("ai_results", {}),
-                        "caption_comparison": res.data.get("caption_results", {}),
-                        "evidence_scorecard": res.data.get("evidence_scorecard", []),
-                        "limitations": res.data.get("limitations", []),
-                        "recommendations": [
-                            "Verify original provenance or raw source file.",
-                            "Cross-reference source news wire publication.",
-                            "Perform reverse image search."
-                        ],
-                        "summary": f"Investigation {inv.data['id']} details retrieved from Supabase."
-                    }
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    r1 = await client.get(f"{self.rest_url}/investigations?id=eq.{investigation_id}&select=*", headers=self.headers)
+                    r2 = await client.get(f"{self.rest_url}/analysis_results?investigation_id=eq.{investigation_id}&select=*", headers=self.headers)
+
+                    if r1.status_code == 200 and r2.status_code == 200:
+                        inv_data = r1.json()
+                        res_data = r2.json()
+                        if inv_data and res_data:
+                            inv = inv_data[0]
+                            res = res_data[0]
+                            return {
+                                "investigation_id": inv["id"],
+                                "image_name": inv["image_name"],
+                                "image_hash": inv["image_hash"],
+                                "assessment": inv["assessment"],
+                                "indicator_score": inv["indicator_score"],
+                                "created_at": inv["created_at"],
+                                "metadata": res.get("metadata_results", {}),
+                                "technical": res.get("technical_results", {}),
+                                "ai_analysis": res.get("ai_results", {}),
+                                "caption_comparison": res.get("caption_results", {}),
+                                "evidence_scorecard": res.get("evidence_scorecard", []),
+                                "limitations": res.get("limitations", []),
+                                "recommendations": [
+                                    "Verify original provenance or raw source file.",
+                                    "Cross-reference source news wire publication.",
+                                    "Perform reverse image search."
+                                ],
+                                "summary": f"Investigation {inv['id']} details retrieved from Supabase."
+                            }
             except Exception as e:
                 print(f"[SupabaseService] Error loading from Supabase: {e}")
 
@@ -147,15 +161,18 @@ class SupabaseService:
         return None
 
     async def delete_investigation(self, investigation_id: str, user_id: Optional[str] = None) -> bool:
-        if self.client:
+        if self.is_connected():
             try:
-                query = self.client.table("investigations").delete().eq("id", investigation_id)
+                url = f"{self.rest_url}/investigations?id=eq.{investigation_id}"
                 if user_id:
-                    query = query.eq("user_id", user_id)
-                query.execute()
-                return True
+                    url += f"&user_id=eq.{user_id}"
+
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    r = await client.delete(url, headers=self.headers)
+                    if r.status_code in [200, 204]:
+                        return True
             except Exception as e:
-                print(f"[SupabaseService] Delete from Supabase failed: {e}")
+                print(f"[SupabaseService] Delete error: {e}")
 
         items = _load_local_store()
         items = [i for i in items if i.get("investigation_id") != investigation_id]
