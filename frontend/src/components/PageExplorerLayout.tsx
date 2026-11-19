@@ -401,13 +401,6 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
         </div>
 
-        {/* 3. BOTTOM STATUS (Flush to lower end of screen) */}
-        <div className="pt-2.5 border-t border-purple-500/20 flex items-center justify-center text-[10px] text-purple-300/60 font-mono flex-shrink-0">
-          <div className="flex items-center space-x-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>All Systems Operational</span>
-          </div>
-        </div>
 
       </div>
 
