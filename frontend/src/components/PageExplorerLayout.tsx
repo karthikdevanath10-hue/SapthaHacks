@@ -40,6 +40,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   const [investigations, setInvestigations] = useState<InvestigationSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [mobileView, setMobileView] = useState<'dial' | 'workspace'>('dial');
 
   // Modality file upload / analysis states for the right pane
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -133,6 +134,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
     if (isRecording) {
       stopRecording();
     }
+    setMobileView('workspace');
   };
 
   const handleFileChange = (file: File) => {
@@ -279,7 +281,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   };
 
   return (
-    <div className="h-screen max-h-screen bg-[#070314] text-white relative overflow-hidden font-sans select-none flex flex-col justify-between">
+    <div className="h-screen max-h-screen h-[100dvh] bg-[#070314] text-white relative overflow-hidden font-sans select-none flex flex-col lg:flex-row items-stretch">
       
       {/* Ambient Neon Glow Gradients */}
       <div className="absolute top-0 left-0 w-[550px] h-[550px] bg-purple-600/15 rounded-full blur-[130px] pointer-events-none" />
@@ -287,13 +289,17 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       <div className="absolute top-1/2 left-1/3 w-[450px] h-[450px] bg-violet-500/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* ======================================================== */}
-      {/* TOP HEADER BAR (Matching user screenshot) */}
+      {/* LEFT COLUMN: FULL HEIGHT SEMI-CIRCULAR GLOWING ARC DIAL */}
+      {/* FLUSH TO TOP END, LOWER END, AND LEFT SCREEN EDGE */}
       {/* ======================================================== */}
-      <header className="relative z-20 px-6 sm:px-10 py-3.5 flex items-center justify-between flex-shrink-0">
+      <div className={`${mobileView === 'workspace' ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex-col justify-between relative z-20 select-none pl-6 sm:pl-8 pr-6 sm:pr-8 pt-5 sm:pt-6 pb-5 sm:pb-6 rounded-l-none rounded-t-none rounded-b-none rounded-r-[220px] sm:rounded-r-[280px] lg:rounded-r-[320px] bg-slate-950/85 border-y-0 border-l-0 border-r-2 border-r-purple-400/90 shadow-[0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl`}>
         
-        {/* Brand & Explorer Title */}
-        <div className="flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/40 ring-1 ring-purple-400/30">
+        {/* Glowing Neon Dot on the Arc Perimeter Apex */}
+        <div className="hidden lg:block absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-[0_0_16px_#c084fc] ring-4 ring-purple-500/50 animate-pulse" />
+
+        {/* 1. TOP BRAND LOGO (Flush to top end of screen) */}
+        <div className="flex items-center space-x-3.5 border-b border-purple-500/20 pb-4 flex-shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/40 ring-1 ring-purple-400/30 flex-shrink-0">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -305,77 +311,27 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                 Page Explorer
               </span>
             </div>
-            <p className="text-[11px] text-purple-300/70 hidden sm:block">
-              Multimodal AI Forensics & Provenance Architecture
+            <p className="text-[11px] text-purple-300/70">
+              Multimodal AI Forensics & Provenance
             </p>
           </div>
         </div>
 
-        {/* Search Bar & User Profile Avatar */}
-        <div className="flex items-center space-x-3">
-          <div className="relative hidden md:block">
-            <Search className="w-4 h-4 text-purple-400/60 absolute left-3.5 top-2.5" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search forensic registry..."
-              className="w-56 lg:w-64 pl-10 pr-4 py-2 bg-slate-900/80 border border-purple-500/30 rounded-full text-xs text-white placeholder:text-purple-400/50 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30 transition shadow-inner"
-            />
+        {/* 2. MIDDLE CAPABILITY SELECTOR (Vertically Centered) */}
+        <div className="my-auto py-3 space-y-4">
+          
+          {/* Dial Header */}
+          <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
+              Select Capability
+            </span>
+            <span className="text-[10px] font-mono text-purple-400/70">
+              Touch to open →
+            </span>
           </div>
 
-          {currentUser ? (
-            <button 
-              onClick={onSignOut}
-              title="Sign Out"
-              className="w-9 h-9 rounded-full bg-purple-900/40 border border-purple-500/50 flex items-center justify-center text-purple-300 hover:text-white hover:border-purple-400 transition cursor-pointer shadow-md"
-            >
-              <User className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              onClick={onOpenAuth}
-              className="px-4 py-2 rounded-full bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 text-white text-xs font-semibold shadow-md shadow-purple-600/30 transition flex items-center space-x-1.5 cursor-pointer"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Sign In</span>
-            </button>
-          )}
-        </div>
-
-      </header>
-
-
-      {/* ======================================================== */}
-      {/* MAIN VIEW: LEFT ARC DIAL (TOUCHING SCREEN EDGE) + RIGHT GLASS WORKSPACE */}
-      {/* ======================================================== */}
-      <main className="relative z-10 flex-1 pl-0 pr-4 sm:pr-8 pb-4 flex flex-col lg:flex-row items-stretch gap-6 w-full min-h-0 overflow-hidden">
-        
-        {/* ====================================================== */}
-        {/* LEFT HALF: SEMI-CIRCULAR GLOWING ARC DIAL (FLUSH TO LEFT SCREEN EDGE) */}
-        {/* ====================================================== */}
-        <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0 flex flex-col justify-center relative sticky lg:static top-0 z-20 select-none">
-          
-          {/* Glowing Semi-Circle Arc Boundary Frame - Touching Left Screen Edge */}
-          <div className="relative pl-6 sm:pl-8 pr-6 sm:pr-8 py-6 sm:py-8 rounded-l-none rounded-r-[180px] sm:rounded-r-[220px] bg-slate-950/80 border-y border-r-2 border-l-0 border-purple-500/30 border-r-purple-400/90 shadow-[0_0_40px_rgba(168,85,247,0.3)] backdrop-blur-2xl">
-            
-            {/* Glowing Neon Dot on the Arc Perimeter */}
-            <div className="hidden lg:block absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-[0_0_16px_#c084fc] ring-4 ring-purple-500/50 animate-pulse" />
-
-            <div className="space-y-5">
-              
-              {/* Dial Title */}
-              <div className="flex items-center justify-between border-b border-purple-500/20 pb-2.5">
-                <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
-                  Select Capability
-                </span>
-                <span className="text-[10px] font-mono text-purple-400/70">
-                  Touch to open →
-                </span>
-              </div>
-
-              {/* 2-Column Curved Grid of Circular Glowing Buttons (Matches Screenshot!) */}
-              <div className="grid grid-cols-2 gap-y-6 gap-x-4 place-items-center py-2">
+          {/* 2-Column Curved Grid of Circular Glowing Buttons (Matches Screenshot!) */}
+          <div className="grid grid-cols-2 gap-y-5 sm:gap-y-6 gap-x-4 place-items-center py-1">
                 {arcMenuItems.map((item) => {
                   const IconComponent = item.icon;
                   const isActive = activeOption === item.id;
@@ -421,39 +377,95 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                 })}
               </div>
 
-              {/* Secondary Options Pills (MCP Search & Analytics) */}
-              <div className="pt-2 border-t border-purple-500/20 flex items-center justify-center gap-2">
-                {secondaryMenuItems.map(sec => {
-                  const SecIcon = sec.icon;
-                  const isSecActive = activeOption === sec.id;
-                  return (
-                    <button
-                      key={sec.id}
-                      onClick={() => handleOptionChange(sec.id)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-medium flex items-center space-x-1.5 transition cursor-pointer border ${
-                        isSecActive 
-                          ? 'bg-purple-600/80 text-white border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]' 
-                          : 'bg-slate-900/50 text-purple-300/70 border-purple-500/30 hover:border-purple-400 hover:text-white'
-                      }`}
-                    >
-                      <SecIcon className="w-3.5 h-3.5" />
-                      <span>{sec.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-            </div>
-
+          {/* Secondary Options Pills (MCP Search & Analytics) */}
+          <div className="pt-2 border-t border-purple-500/20 flex items-center justify-center gap-2">
+            {secondaryMenuItems.map(sec => {
+              const SecIcon = sec.icon;
+              const isSecActive = activeOption === sec.id;
+              return (
+                <button
+                  key={sec.id}
+                  onClick={() => handleOptionChange(sec.id)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-medium flex items-center space-x-1.5 transition cursor-pointer border ${
+                    isSecActive 
+                      ? 'bg-purple-600/80 text-white border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]' 
+                      : 'bg-slate-900/50 text-purple-300/70 border-purple-500/30 hover:border-purple-400 hover:text-white'
+                  }`}
+                >
+                  <SecIcon className="w-3.5 h-3.5" />
+                  <span>{sec.label}</span>
+                </button>
+              );
+            })}
           </div>
 
         </div>
 
+        {/* 3. BOTTOM STATUS (Flush to lower end of screen) */}
+        <div className="pt-3 border-t border-purple-500/20 flex items-center justify-between text-[11px] text-purple-300/60 font-mono flex-shrink-0">
+          <div className="flex items-center space-x-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Operational</span>
+          </div>
+          <span>ISO 27037 Compliant</span>
+        </div>
 
-        {/* ====================================================== */}
-        {/* RIGHT HALF: EXPANDED WORKSPACE GLASS PANEL (OPENS ON TOUCH) */}
-        {/* ====================================================== */}
-        <div className="flex-1 bg-slate-950/50 border border-purple-500/30 rounded-3xl shadow-[0_0_40px_rgba(147,51,234,0.18)] backdrop-blur-2xl p-5 lg:p-7 flex flex-col justify-between relative overflow-hidden h-full min-h-0">
+      </div>
+
+
+      {/* ======================================================== */}
+      {/* RIGHT COLUMN: SEARCH HEADER + EXPANDED WORKSPACE GLASS PANEL */}
+      {/* ======================================================== */}
+      <div className={`${mobileView === 'dial' ? 'hidden lg:flex' : 'flex'} flex-1 h-full min-h-0 flex-col p-4 sm:p-6 lg:p-7 pr-4 sm:pr-8 gap-3.5 overflow-hidden relative z-10`}>
+        
+        {/* Top Control Bar: Search Bar + Mobile Back Button + User Profile Avatar */}
+        <div className="flex items-center justify-between flex-shrink-0 gap-3">
+          
+          <div className="flex items-center space-x-2 flex-1 max-w-lg">
+            {/* Mobile Back to Dial Button */}
+            <button
+              onClick={() => setMobileView('dial')}
+              className="lg:hidden px-3.5 py-1.5 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300 text-xs font-semibold flex items-center space-x-1 hover:text-white transition cursor-pointer shadow-md"
+            >
+              <span>← Dial</span>
+            </button>
+
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-purple-400/60 absolute left-3.5 top-2.5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search forensic registry..."
+                className="w-full pl-10 pr-4 py-2 bg-slate-900/80 border border-purple-500/30 rounded-full text-xs text-white placeholder:text-purple-400/50 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30 transition shadow-inner"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            {currentUser ? (
+              <button 
+                onClick={onSignOut}
+                title="Sign Out"
+                className="w-9 h-9 rounded-full bg-purple-900/40 border border-purple-500/50 flex items-center justify-center text-purple-300 hover:text-white hover:border-purple-400 transition cursor-pointer shadow-md"
+              >
+                <User className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={onOpenAuth}
+                className="px-4 py-2 rounded-full bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 text-white text-xs font-semibold shadow-md shadow-purple-600/30 transition flex items-center space-x-1.5 cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right Glass Workspace Panel */}
+        <div className="flex-1 bg-slate-950/50 border border-purple-500/30 rounded-3xl shadow-[0_0_40px_rgba(147,51,234,0.18)] backdrop-blur-2xl p-5 lg:p-7 flex flex-col justify-between relative overflow-hidden min-h-0">
           
           {/* Subtle Ambient Scenic Background (Matching image) */}
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-slate-950/30 to-indigo-950/20 pointer-events-none" />
@@ -1150,7 +1162,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
         </div>
 
-      </main>
+      </div>
 
     </div>
   );

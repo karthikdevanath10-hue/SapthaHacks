@@ -50,15 +50,18 @@ export function App() {
 
   if (inspectingAnalysis) {
     return (
-      <div className="min-h-screen bg-[#070314] text-white p-6 sm:p-10 space-y-6">
-        <button
-          onClick={() => setInspectingAnalysis(null)}
-          className="px-4 py-2 rounded-xl border border-purple-500/40 bg-purple-950/40 text-purple-300 hover:text-white hover:border-purple-400 text-xs font-semibold flex items-center space-x-2 shadow-sm transition cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Page Explorer</span>
-        </button>
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-[#070314] text-white p-4 sm:p-8 space-y-6 relative overflow-hidden font-sans">
+        {/* Ambient Neon Glow Gradients */}
+        <div className="absolute top-0 left-0 w-[550px] h-[550px] bg-purple-600/15 rounded-full blur-[130px] pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none" />
+        <div className="relative z-10 max-w-7xl mx-auto space-y-6">
+          <button
+            onClick={() => setInspectingAnalysis(null)}
+            className="px-4 py-2.5 rounded-xl border border-purple-500/40 bg-purple-950/60 text-purple-300 hover:text-white hover:border-purple-400 text-xs font-semibold flex items-center space-x-2 shadow-[0_0_20px_rgba(168,85,247,0.25)] transition cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Page Explorer</span>
+          </button>
           <EvidenceScorecardView analysis={inspectingAnalysis} />
         </div>
       </div>
