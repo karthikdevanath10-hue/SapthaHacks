@@ -479,7 +479,21 @@ interface VaultFileItem {
     }
 
     try {
-      const recorder = new MediaRecorder(videoCameraStream, mimeType ? { mimeType } : undefined);
+      const recorderOptions: MediaRecorderOptions = {};
+      if (mimeType) {
+        recorderOptions.mimeType = mimeType;
+      }
+      // Target 1.2 Mbps for crisp 720p stream while ensuring size stays well within cloud function 4.5MB limits
+      try {
+        recorderOptions.videoBitsPerSecond = 1_200_000;
+      } catch {}
+
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(videoCameraStream, recorderOptions);
+      } catch {
+        recorder = new MediaRecorder(videoCameraStream, mimeType ? { mimeType } : undefined);
+      }
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
           videoChunksRef.current.push(e.data);
@@ -580,52 +594,214 @@ interface VaultFileItem {
     return () => clearInterval(interval);
   }, [isAnalyzing, analyzingModality, detectedCuts]);
 
+  const optimizeVideoForAnalysis = async (file: File): Promise<File> => {
+    // If already under 4.0MB, no compression is required
+    if (file.size <= 4.0 * 1024 * 1024) {
+      return file;
+    }
+
+    return new Promise((resolve) => {
+      try {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        const objectUrl = URL.createObjectURL(file);
+        video.src = objectUrl;
+
+        video.onloadedmetadata = () => {
+          const origW = video.videoWidth || 640;
+          const origH = video.videoHeight || 360;
+          const targetW = 640;
+          const targetH = Math.round((targetW * origH) / origW) || 360;
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            URL.revokeObjectURL(objectUrl);
+            resolve(file);
+            return;
+          }
+
+          const stream = (canvas as any).captureStream ? (canvas as any).captureStream(24) : null;
+          if (!stream) {
+            URL.revokeObjectURL(objectUrl);
+            resolve(file);
+            return;
+          }
+
+          let chosenMime = 'video/webm';
+          if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+            chosenMime = 'video/webm;codecs=vp8';
+          } else if (MediaRecorder.isTypeSupported('video/webm')) {
+            chosenMime = 'video/webm';
+          } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+            chosenMime = 'video/mp4';
+          }
+
+          let recorder: MediaRecorder;
+          try {
+            recorder = new MediaRecorder(stream, {
+              mimeType: chosenMime,
+              videoBitsPerSecond: 800_000
+            });
+          } catch {
+            recorder = new MediaRecorder(stream);
+          }
+
+          const chunks: Blob[] = [];
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) chunks.push(e.data);
+          };
+
+          let finished = false;
+          const cleanup = () => {
+            if (finished) return;
+            finished = true;
+            try {
+              URL.revokeObjectURL(objectUrl);
+            } catch {}
+            const blob = new Blob(chunks, { type: chosenMime });
+            if (blob.size > 2000) {
+              const ext = chosenMime.includes('mp4') ? 'mp4' : 'webm';
+              const cleanName = file.name.replace(/\.[^/.]+$/, '');
+              resolve(new File([blob], `${cleanName}_optimized.${ext}`, { type: chosenMime }));
+            } else {
+              resolve(file);
+            }
+          };
+
+          recorder.onstop = cleanup;
+
+          // 4x speed playback for fast compression
+          video.playbackRate = 4.0;
+          try {
+            recorder.start(100);
+          } catch {
+            resolve(file);
+            return;
+          }
+
+          let reqId: number;
+          const renderLoop = () => {
+            if (finished || video.paused || video.ended) return;
+            // Cap to 25 seconds for serverless envelope
+            if (video.currentTime >= 25.0) {
+              if (recorder.state === 'recording') recorder.stop();
+              video.pause();
+              return;
+            }
+            ctx.drawImage(video, 0, 0, targetW, targetH);
+            reqId = requestAnimationFrame(renderLoop);
+          };
+
+          video.onplay = () => {
+            renderLoop();
+          };
+
+          video.onended = () => {
+            if (recorder.state === 'recording') {
+              recorder.stop();
+            }
+          };
+
+          // 8s timeout safety guard
+          setTimeout(() => {
+            cancelAnimationFrame(reqId);
+            if (recorder.state === 'recording') {
+              recorder.stop();
+              video.pause();
+            }
+          }, 8000);
+
+          video.play().catch(() => resolve(file));
+        };
+
+        video.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(file);
+        };
+      } catch {
+        resolve(file);
+      }
+    });
+  };
+
   const handleRunAnalysis = async (mod: MediaModality, overrideFile?: File) => {
     const targetFile = overrideFile || selectedFile;
     if (!targetFile && !directText.trim()) {
       setAnalysisError('Please upload a media file, capture a photo, or provide text before commencing examination.');
       return;
     }
-    setAnalyzingModality(mod);
+
+    // Auto-detect if file is video
+    const isVideo = mod === 'video' || (targetFile?.type ? targetFile.type.startsWith('video/') : false);
+    const effectiveModality = isVideo ? 'video' : mod;
+
+    setAnalyzingModality(effectiveModality);
     setScanSecond(0);
     setScanFrame(0);
     setScanProgress(6);
     setDetectedCuts([]);
     setIsAnalyzing(true);
     setAnalysisError(null);
+
     try {
+      // 1. Optimize large video files (>4.0MB) to stay within Vercel cloud function 4.5MB payload limit
+      let uploadPayload = targetFile;
+      if (isVideo && targetFile && targetFile.size > 4.0 * 1024 * 1024) {
+        uploadPayload = await optimizeVideoForAnalysis(targetFile);
+      }
+
       const res = await apiService.analyzeMedia({
-        file: targetFile,
+        file: uploadPayload,
         textContent: directText,
         caption,
         sourceContext,
         userId: currentUser?.id,
-        modality: mod
+        modality: effectiveModality
       });
+
       fetchHistory();
       fetchStorage();
+
       let localBlobUrl: string | undefined;
       if (targetFile) {
         try {
           localBlobUrl = URL.createObjectURL(targetFile);
-          const reader = new FileReader();
-          reader.onload = () => {
-            try {
-              const b64 = reader.result as string;
-              sessionStorage.setItem(`media_${res.investigation_id}`, b64);
-              if (res.image_hash) {
-                sessionStorage.setItem(`media_hash_${res.image_hash}`, b64);
-              }
-            } catch (e) {}
-          };
-          reader.readAsDataURL(targetFile);
+          // Only cache small images in sessionStorage (under 2MB) to prevent QuotaExceededError
+          if (targetFile.size < 2.0 * 1024 * 1024 && !targetFile.type.startsWith('video')) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              try {
+                const b64 = reader.result as string;
+                sessionStorage.setItem(`media_${res.investigation_id}`, b64);
+                if (res.image_hash) {
+                  sessionStorage.setItem(`media_hash_${res.image_hash}`, b64);
+                }
+              } catch (e) {}
+            };
+            reader.readAsDataURL(targetFile);
+          }
         } catch (e) {
           console.error(e);
         }
       }
-      onInspectResult(res, res.media_preview || localBlobUrl);
+
+      // For video, pass the playable blob URL, fallback to previewUrl or media URL. NEVER pass the JPEG thumbnail!
+      const finalMediaUrl = isVideo 
+        ? (localBlobUrl || previewUrl || apiService.getMediaUrl(res.investigation_id))
+        : (res.media_preview || localBlobUrl);
+
+      // Trigger automatic report page opening
+      onInspectResult(res, finalMediaUrl);
     } catch (err: any) {
-      const detail = err.response?.data?.detail || err.message || 'Forensic examination failed';
+      console.error('Analysis failed:', err);
+      const detail = err.response?.data?.detail 
+        || (typeof err.response?.data === 'string' && err.response.data.includes('TOO_LARGE') ? 'Video file payload exceeded 4.5MB limit. Compressing for cloud processing...' : null)
+        || err.message 
+        || 'Forensic examination failed';
       setAnalysisError(detail);
     } finally {
       setIsAnalyzing(false);
@@ -1428,6 +1604,13 @@ interface VaultFileItem {
                       />
                     </div>
 
+                    {analysisError && (
+                      <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-xs text-rose-300 flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        <span>{analysisError}</span>
+                      </div>
+                    )}
+
                     <button
                       onClick={() => handleRunAnalysis('video')}
                       disabled={isAnalyzing || !selectedFile}
@@ -1532,6 +1715,13 @@ interface VaultFileItem {
                       </div>
                     )}
 
+                    {analysisError && (
+                      <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-xs text-rose-300 flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        <span>{analysisError}</span>
+                      </div>
+                    )}
+
                     <button
                       onClick={() => handleRunAnalysis('audio')}
                       disabled={isAnalyzing || !selectedFile}
@@ -1574,6 +1764,13 @@ interface VaultFileItem {
                       placeholder="Paste suspect statement, news claim, press release, or speech transcript here..."
                       className="w-full p-4 bg-slate-900/80 border border-purple-500/30 rounded-xl text-xs text-white placeholder:text-purple-400/40 focus:outline-none focus:border-purple-400 resize-y"
                     />
+
+                    {analysisError && (
+                      <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-xs text-rose-300 flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        <span>{analysisError}</span>
+                      </div>
+                    )}
 
                     <button
                       onClick={() => handleRunAnalysis('text')}

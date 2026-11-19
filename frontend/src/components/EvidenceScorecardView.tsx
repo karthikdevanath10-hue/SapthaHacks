@@ -19,6 +19,14 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
   const resolveMediaUrl = () => {
+    // For video modality, NEVER return static JPEG thumbnail as video source!
+    if (analysis.modality === 'video') {
+      if (previewUrl && !previewUrl.startsWith('data:image/')) {
+        return previewUrl;
+      }
+      return apiService.getMediaUrl(analysis.investigation_id);
+    }
+
     const cached = typeof window !== 'undefined' 
       ? (sessionStorage.getItem(`media_${analysis.investigation_id}`) || sessionStorage.getItem(`media_hash_${analysis.image_hash}`)) 
       : null;
@@ -910,8 +918,8 @@ export const EvidenceScorecardView: React.FC<ScorecardProps> = ({ analysis, onDo
               
               {/* Pins on the timeline */}
               {editedSegments.map((seg, idx) => {
-                const totalDur = analysis.video_diagnostics?.duration_seconds || (editedSegments[editedSegments.length - 1]?.timestamp_seconds * 1.15) || 22.0;
-                const leftPct = Math.min(Math.max((seg.timestamp_seconds / totalDur) * 100, 2), 98);
+                const totalDur = Math.max(Number(analysis.video_diagnostics?.duration_seconds) || (editedSegments[editedSegments.length - 1]?.timestamp_seconds * 1.15) || 22.0, 1.0);
+                const leftPct = Math.min(Math.max((Number(seg.timestamp_seconds || 0) / totalDur) * 100, 2), 98);
                 const isSevere = seg.delta_score > 30;
                 const isMed = seg.delta_score > 12;
                 const isSelected = activeSeekSec === seg.timestamp_seconds;

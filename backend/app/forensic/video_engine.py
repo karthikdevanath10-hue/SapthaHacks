@@ -23,8 +23,9 @@ def detect_exact_edited_frame_timestamps(filepath: str, fps: float) -> List[Edit
     diffs = []
     prev_gray = None
     frame_idx = 0
+    max_scan_frames = 900  # Scan up to 30s of dense temporal timeline for rapid serverless response
 
-    while True:
+    while frame_idx < max_scan_frames:
         ret, frame = cap.read()
         if not ret:
             break
