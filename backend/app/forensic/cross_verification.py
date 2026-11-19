@@ -161,6 +161,117 @@ async def cross_verify_caption_and_image(
 
     return _fallback_cross_verification(caption_clean, source_context, ai_visual)
 
+async def cross_verify_generic_modality_claim(
+    modality: str,
+    caption: Optional[str],
+    source_context: Optional[str],
+    ai_visual: AIVisualResult
+) -> Tuple[CaptionComparisonResult, List[EvidenceItem]]:
+    evidence_items: List[EvidenceItem] = []
+    if not caption or not caption.strip():
+        return CaptionComparisonResult(
+            caption_provided=False,
+            caption_text=None,
+            source_context=source_context,
+            consistency_verdict="No Caption Provided",
+            discrepancy_details=[],
+            semantic_match_score=1.0,
+            explanation=f"No external claim or caption was submitted for cross-verification of this {modality} recording."
+        ), evidence_items
+
+    caption_clean = caption.strip()
+    api_key = settings.GEMINI_API_KEY
+    if not api_key:
+        return _fallback_cross_verification(caption_clean, source_context, ai_visual)
+
+    prompt = f"""
+You are a Digital Forensics Fact-Checking Specialist.
+Evaluate whether the following contextual claim matches the investigated {modality.upper()} media content.
+
+CLAIM / CAPTION TO VERIFY:
+"{caption_clean}"
+
+INVESTIGATED MEDIA CONTENT / TRANSCRIPT / SCENE SUMMARY:
+"{ai_visual.scene_description}"
+
+DETECTED ENTITIES / CUES:
+{json.dumps(ai_visual.detected_entities)}
+
+RULES:
+1. Determine if the claim contradicts or misrepresents what is actually present in the media.
+2. Distinguish:
+   - "Consistent": Content matches the claim.
+   - "Partially Inconsistent": Exaggerated or minor mismatches.
+   - "Mismatched / Contradictory": Media contradicts the claim (Misattribution / Cheapfake).
+3. Output STRICTLY valid JSON:
+{{
+  "consistency_verdict": "Consistent" | "Partially Inconsistent" | "Mismatched / Contradictory",
+  "discrepancy_details": ["discrepancy 1"],
+  "semantic_match_score": 0.0 to 1.0,
+  "explanation": "Clear explanation of agreement or contradiction.",
+  "why_it_matters": "Forensic significance of mismatch",
+  "severity": "informational" | "low" | "medium" | "suspicious",
+  "score_impact": 0 to 25
+}}
+"""
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.2, "response_mime_type": "application/json"}
+        }
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            response = await client.post(url, json=payload)
+        if response.status_code == 200:
+            parsed = json.loads(response.json()["candidates"][0]["content"]["parts"][0]["text"].strip())
+            verdict = parsed.get("consistency_verdict", "Consistent")
+            discrepancies = parsed.get("discrepancy_details", [])
+            match_score = float(parsed.get("semantic_match_score", 1.0))
+            explanation = parsed.get("explanation", "Claim evaluated against media description.")
+            severity = parsed.get("severity", "informational")
+            score_impact = int(parsed.get("score_impact", 0))
+
+            if verdict in ["Mismatched / Contradictory", "Partially Inconsistent"]:
+                evidence_items.append(EvidenceItem(
+                    id=f"CAP-{modality.upper()[:3]}-01",
+                    title=f"Context Misattribution ({modality.capitalize()} vs Claim Mismatch)",
+                    layer="Cross-Modal Verification",
+                    severity=severity,
+                    confidence="High Confidence",
+                    explanation=explanation,
+                    why_flagged=f"Claim asserts elements absent or contradicted in the {modality} stream.",
+                    limitations=f"Misattribution indicates misleading context, not necessarily synthetic {modality} generation.",
+                    evidence_source=f"Gemini Cross-Modal Semantic Intelligence ({settings.GEMINI_MODEL})",
+                    score_impact=score_impact
+                ))
+            else:
+                evidence_items.append(EvidenceItem(
+                    id=f"CAP-{modality.upper()[:3]}-01",
+                    title=f"Claim Aligned with {modality.capitalize()} Context",
+                    layer="Cross-Modal Verification",
+                    severity="informational",
+                    confidence="High Confidence",
+                    explanation=explanation,
+                    why_flagged=f"Claim matches verified {modality} entities and actions.",
+                    limitations="Consistent description does not preclude synthetic origin.",
+                    evidence_source=f"Gemini Cross-Modal Semantic Intelligence ({settings.GEMINI_MODEL})",
+                    score_impact=0
+                ))
+
+            return CaptionComparisonResult(
+                caption_provided=True,
+                caption_text=caption_clean,
+                source_context=source_context,
+                consistency_verdict=verdict,
+                discrepancy_details=discrepancies,
+                semantic_match_score=match_score,
+                explanation=explanation
+            ), evidence_items
+    except Exception as e:
+        print(f"[GenericCrossVerification] Exception: {e}")
+
+    return _fallback_cross_verification(caption_clean, source_context, ai_visual)
+
 def _fallback_cross_verification(
     caption: str,
     source_context: Optional[str],

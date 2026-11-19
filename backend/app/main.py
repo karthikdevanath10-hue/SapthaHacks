@@ -12,7 +12,12 @@ from app.core.config import settings
 from app.models.schemas import (
     FullAnalysisResponse, MetadataResult, TechnicalResult,
     AIVisualResult, CaptionComparisonResult, EvidenceItem,
-    VideoDiagnostics, AudioDiagnostics, TextDiagnostics
+    VideoDiagnostics, AudioDiagnostics, TextDiagnostics,
+    QualityGateResult
+)
+from app.forensic.quality_gate import (
+    assess_image_quality, assess_audio_quality,
+    assess_video_quality, assess_text_quality
 )
 from app.forensic.metadata_engine import extract_metadata
 from app.forensic.technical_engine import analyze_technical_properties
@@ -20,7 +25,10 @@ from app.forensic.gemini_engine import analyze_with_gemini
 from app.forensic.video_engine import analyze_video_forensics
 from app.forensic.audio_engine import analyze_audio_forensics
 from app.forensic.text_engine import analyze_text_forensics
-from app.forensic.cross_verification import cross_verify_caption_and_image
+from app.forensic.cross_verification import (
+    cross_verify_caption_and_image,
+    cross_verify_generic_modality_claim
+)
 from app.forensic.scorecard_engine import synthesize_evidence_scorecard
 from app.forensic.report_engine import generate_pdf_report
 from app.services.supabase_service import supabase_service
@@ -141,25 +149,43 @@ async def analyze_multimodal_media(
         ai_res, ai_evidence = await analyze_with_gemini(filepath)
         all_evidence.extend(ai_evidence)
 
-    # 3. Caption / Claim Cross-Verification (if applicable)
+    # 3. Quality Gate Evaluation
+    quality_gate_res: Optional[QualityGateResult] = None
+    if modality == "image":
+        quality_gate_res, qual_ev = assess_image_quality(filepath)
+        if qual_ev:
+            all_evidence.append(qual_ev)
+    elif modality == "video" and video_diag:
+        quality_gate_res, qual_ev = assess_video_quality(
+            video_diag.duration_seconds, video_diag.frame_count,
+            video_diag.resolution.get("width", 0), video_diag.resolution.get("height", 0)
+        )
+        if qual_ev:
+            all_evidence.append(qual_ev)
+    elif modality == "audio" and audio_diag:
+        quality_gate_res, qual_ev = assess_audio_quality(
+            audio_diag.duration_seconds, audio_diag.sample_rate_hz
+        )
+        if qual_ev:
+            all_evidence.append(qual_ev)
+    elif modality == "text" and text_diag:
+        quality_gate_res, qual_ev = assess_text_quality(text_diag.word_count)
+        if qual_ev:
+            all_evidence.append(qual_ev)
+
+    # 4. Caption / Claim Cross-Verification (Multimodal Misattribution Check)
     if modality == "image":
         caption_res, cap_evidence = await cross_verify_caption_and_image(
             filepath, caption, source_context, ai_res
         )
         all_evidence.extend(cap_evidence)
     else:
-        # Clean response for other modalities
-        caption_res = CaptionComparisonResult(
-            caption_provided=bool(caption and caption.strip()),
-            caption_text=caption,
-            source_context=source_context,
-            consistency_verdict="Consistent" if caption else "No Caption Provided",
-            discrepancy_details=[],
-            semantic_match_score=1.0,
-            explanation=f"Modality '{modality.upper()}' investigated directly against contextual claim." if caption else "Direct media analysis."
+        caption_res, cap_evidence = await cross_verify_generic_modality_claim(
+            modality, caption, source_context, ai_res
         )
+        all_evidence.extend(cap_evidence)
 
-    # 4. Multi-Layer Evidence Scorecard & Final Assessment Aggregation
+    # 5. Multi-Layer Evidence Scorecard & Final Assessment Aggregation
     assessment, indicator_score, summary, scorecard, limitations, recommendations = synthesize_evidence_scorecard(
         metadata=metadata_res,
         technical=technical_res,
@@ -186,6 +212,7 @@ async def analyze_multimodal_media(
         video_diagnostics=video_diag,
         audio_diagnostics=audio_diag,
         text_diagnostics=text_diag,
+        quality_gate=quality_gate_res,
         evidence_scorecard=scorecard,
         limitations=limitations,
         recommendations=recommendations,

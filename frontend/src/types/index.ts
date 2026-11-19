@@ -114,6 +114,16 @@ export interface CaptionComparisonResult {
   explanation: string;
 }
 
+export interface QualityGateResult {
+  status: 'PASS' | 'MARGINAL' | 'INSUFFICIENT';
+  quality_score: number;
+  resolution_check: string;
+  signal_to_noise_check: string;
+  duration_or_length_check: string;
+  observations: string[];
+  limitations: string[];
+}
+
 export interface FullAnalysisResponse {
   investigation_id: string;
   modality: MediaModality;
@@ -129,6 +139,7 @@ export interface FullAnalysisResponse {
   video_diagnostics?: VideoDiagnostics;
   audio_diagnostics?: AudioDiagnostics;
   text_diagnostics?: TextDiagnostics;
+  quality_gate?: QualityGateResult;
   evidence_scorecard: EvidenceItem[];
   limitations: string[];
   recommendations: string[];

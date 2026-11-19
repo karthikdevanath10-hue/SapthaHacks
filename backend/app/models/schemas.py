@@ -1,6 +1,15 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
+class QualityGateResult(BaseModel):
+    status: str = "PASS"  # "PASS", "MARGINAL", "INSUFFICIENT"
+    quality_score: int = 100  # 0 to 100
+    resolution_check: str = "Adequate"
+    signal_to_noise_check: str = "Acceptable"
+    duration_or_length_check: str = "Optimal"
+    observations: List[str] = []
+    limitations: List[str] = []
+
 class EvidenceItem(BaseModel):
     id: str
     title: str
@@ -129,6 +138,7 @@ class FullAnalysisResponse(BaseModel):
     video_diagnostics: Optional[VideoDiagnostics] = None
     audio_diagnostics: Optional[AudioDiagnostics] = None
     text_diagnostics: Optional[TextDiagnostics] = None
+    quality_gate: Optional[QualityGateResult] = None
     evidence_scorecard: List[EvidenceItem]
     limitations: List[str]
     recommendations: List[str]
