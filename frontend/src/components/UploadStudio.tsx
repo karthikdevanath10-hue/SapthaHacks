@@ -88,7 +88,7 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
         return 'text/plain,.txt';
       case 'image':
       default:
-        return 'image/*,.jpg,.jpeg,.png,.webp,.tiff';
+        return 'image/*,.jpg,.jpeg,.png,.webp,.tiff,.jfif,.jfi,.bmp';
     }
   };
 
@@ -181,6 +181,8 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
       setSelectedModality('audio');
     } else if (['.txt'].includes(ext)) {
       setSelectedModality('text');
+    } else if (['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.jfif', '.jfi', '.bmp'].includes(ext) || file.type.startsWith('image/')) {
+      setSelectedModality('image');
     } else {
       setSelectedModality('image');
     }
@@ -497,7 +499,7 @@ export const UploadStudio: React.FC<UploadStudioProps> = ({ currentUser, onAnaly
                     {selectedModality === 'video' && 'Supports MP4, MOV, WEBM, AVI up to 50MB.'}
                     {selectedModality === 'audio' && 'Supports MP3, WAV, M4A, AAC, OGG up to 50MB.'}
                     {selectedModality === 'text' && 'Supports TXT plain text documents.'}
-                    {selectedModality === 'image' && 'Supports JPG, PNG, WEBP, TIFF up to 25MB.'}
+                    {selectedModality === 'image' && 'Supports JPG, JPEG, PNG, WEBP, JFIF, TIFF up to 25MB.'}
                   </p>
 
                   <button 

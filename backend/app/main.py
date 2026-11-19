@@ -2,18 +2,11 @@ import logging
 import os
 import time
 import uuid
-<<<<<<< HEAD
-from datetime import datetime, timezone
-from typing import Optional, List
-
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-=======
 import shutil
 import asyncio
 from datetime import datetime, timezone
 from typing import Optional, List
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
->>>>>>> 4ddf713 (feat: Upgrade to enterprise corporate design and parallel async speed optimization)
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -28,7 +21,8 @@ from app.core.security import (
 from app.models.schemas import (
     FullAnalysisResponse, AnalyzerRun, EvidenceItem,
     VideoDiagnostics, AudioDiagnostics, TextDiagnostics,
-    QualityGateResult,
+    QualityGateResult, TechnicalResult, MetadataResult,
+    AIVisualResult, CaptionComparisonResult
 )
 from app.forensic.quality_gate import (
     assess_image_quality, assess_audio_quality,
@@ -100,7 +94,7 @@ def detect_modality(filename: str, override: Optional[str] = None) -> str:
     if override and override.lower() in ["image", "video", "audio", "text"]:
         return override.lower()
     ext = os.path.splitext(filename)[1].lower()
-    if ext in [".jpg", ".jpeg", ".png", ".webp", ".tiff"]:
+    if ext in [".jpg", ".jpeg", ".png", ".webp", ".tiff", ".jfif", ".jfi", ".bmp"]:
         return "image"
     elif ext in [".mp4", ".mov", ".webm", ".avi", ".mkv"]:
         return "video"

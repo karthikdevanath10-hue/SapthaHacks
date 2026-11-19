@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 50
     ALLOWED_EXTENSIONS: List[str] = [
         # Images
-        ".jpg", ".jpeg", ".png", ".webp", ".tiff",
+        ".jpg", ".jpeg", ".png", ".webp", ".tiff", ".jfif", ".jfi", ".bmp",
         # Videos
         ".mp4", ".mov", ".webm", ".avi", ".mkv",
         # Audio / Voice
