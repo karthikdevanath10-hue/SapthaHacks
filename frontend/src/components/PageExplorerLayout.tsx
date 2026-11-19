@@ -347,17 +347,17 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
 
 
       {/* ======================================================== */}
-      {/* MAIN VIEW: LEFT ARC DIAL + RIGHT GLASS WORKSPACE */}
+      {/* MAIN VIEW: LEFT ARC DIAL (TOUCHING SCREEN EDGE) + RIGHT GLASS WORKSPACE */}
       {/* ======================================================== */}
-      <main className="relative z-10 flex-1 px-4 sm:px-8 pb-4 flex flex-col lg:flex-row items-stretch gap-6 max-w-7xl mx-auto w-full min-h-0 overflow-hidden">
+      <main className="relative z-10 flex-1 pl-0 pr-4 sm:pr-8 pb-4 flex flex-col lg:flex-row items-stretch gap-6 w-full min-h-0 overflow-hidden">
         
         {/* ====================================================== */}
-        {/* LEFT HALF: SEMI-CIRCULAR GLOWING ARC DIAL (CONSTANT & PINNED) */}
+        {/* LEFT HALF: SEMI-CIRCULAR GLOWING ARC DIAL (FLUSH TO LEFT SCREEN EDGE) */}
         {/* ====================================================== */}
-        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 flex flex-col justify-center relative sticky lg:static top-0 z-20 select-none">
+        <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0 flex flex-col justify-center relative sticky lg:static top-0 z-20 select-none">
           
-          {/* Glowing Semi-Circle Arc Boundary Frame */}
-          <div className="relative p-5 sm:p-7 rounded-3xl lg:rounded-r-[180px] bg-slate-950/70 border border-purple-500/30 lg:border-r-2 lg:border-r-purple-400/80 shadow-[0_0_35px_rgba(168,85,247,0.25)] backdrop-blur-2xl">
+          {/* Glowing Semi-Circle Arc Boundary Frame - Touching Left Screen Edge */}
+          <div className="relative pl-6 sm:pl-8 pr-6 sm:pr-8 py-6 sm:py-8 rounded-l-none rounded-r-[180px] sm:rounded-r-[220px] bg-slate-950/80 border-y border-r-2 border-l-0 border-purple-500/30 border-r-purple-400/90 shadow-[0_0_40px_rgba(168,85,247,0.3)] backdrop-blur-2xl">
             
             {/* Glowing Neon Dot on the Arc Perimeter */}
             <div className="hidden lg:block absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-[0_0_16px_#c084fc] ring-4 ring-purple-500/50 animate-pulse" />
