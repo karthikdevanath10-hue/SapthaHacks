@@ -3,7 +3,7 @@ from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -12,8 +12,8 @@ from app.core.config import settings
 
 def generate_pdf_report(analysis: FullAnalysisResponse) -> str:
     """
-    Generates a professional cybersecurity-grade Digital Forensic PDF Report
-    using ReportLab.
+    Generates a professional multimodal Digital Forensic PDF Report
+    supporting Image, Video, Audio, and Text investigations.
     """
     os.makedirs(settings.REPORTS_DIR, exist_ok=True)
     report_filename = f"TruthLens_Forensic_Report_{analysis.investigation_id[:8]}.pdf"
@@ -30,7 +30,6 @@ def generate_pdf_report(analysis: FullAnalysisResponse) -> str:
 
     styles = getSampleStyleSheet()
 
-    # Custom styles
     brand_title_style = ParagraphStyle(
         "BrandTitle",
         parent=styles["Heading1"],
@@ -90,16 +89,17 @@ def generate_pdf_report(analysis: FullAnalysisResponse) -> str:
     story = []
 
     # 1. Header Banner
-    story.append(Paragraph("TRUTHLENS FORENSICS", brand_title_style))
-    story.append(Paragraph("AI-Powered Multimodal Digital Forensics & Deepfake Detection | PS04", brand_sub_style))
+    story.append(Paragraph("TRUTHLENS MULTIMODAL FORENSICS", brand_title_style))
+    story.append(Paragraph(f"AI Digital Forensics & Deepfake Detection Platform | Modality: {analysis.modality.upper()}", brand_sub_style))
     story.append(Spacer(1, 8))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0284c7"), spaceAfter=12))
 
     # 2. Case Details Table
     case_data = [
         [Paragraph("<b>Investigation ID:</b>", body_text), Paragraph(analysis.investigation_id, body_text)],
+        [Paragraph("<b>Target Modality:</b>", body_text), Paragraph(f"<b>{analysis.modality.upper()}</b>", bold_label)],
         [Paragraph("<b>Timestamp (UTC):</b>", body_text), Paragraph(analysis.created_at, body_text)],
-        [Paragraph("<b>Target File Name:</b>", body_text), Paragraph(analysis.image_name, body_text)],
+        [Paragraph("<b>Media File Name:</b>", body_text), Paragraph(analysis.image_name, body_text)],
         [Paragraph("<b>SHA-256 Hash:</b>", body_text), Paragraph(f"<code>{analysis.image_hash}</code>", body_text)],
         [Paragraph("<b>Indicator Risk Score:</b>", body_text), Paragraph(f"<b>{analysis.indicator_score} / 100</b>", bold_label)],
         [Paragraph("<b>Core Assessment:</b>", body_text), Paragraph(f"<b>{analysis.assessment}</b>", bold_label)]
@@ -120,39 +120,65 @@ def generate_pdf_report(analysis: FullAnalysisResponse) -> str:
     story.append(Paragraph(analysis.summary, body_text))
     story.append(Spacer(1, 10))
 
-    # 4. Multi-Layer Technical Details
-    story.append(Paragraph("Layer 1: File & Metadata Diagnostics", section_heading))
-    meta = analysis.metadata
-    meta_info = f"Dimensions: {meta.dimensions.get('width')}x{meta.dimensions.get('height')} | Format: {meta.format} | Size: {meta.file_size_human} | Has EXIF: {meta.has_exif}"
-    if meta.camera_make or meta.camera_model:
-        meta_info += f" | Camera: {meta.camera_make or ''} {meta.camera_model or ''}"
-    if meta.software_signature:
-        meta_info += f" | Software: {meta.software_signature}"
-    story.append(Paragraph(meta_info, body_text))
-    story.append(Spacer(1, 8))
+    # 4. Modality-Specific Diagnostics Section
+    if analysis.modality == "video" and analysis.video_diagnostics:
+        v = analysis.video_diagnostics
+        story.append(Paragraph("Video & Deepfake Diagnostics", section_heading))
+        v_info = (
+            f"<b>Duration:</b> {v.duration_seconds}s | <b>FPS:</b> {v.fps} | <b>Resolution:</b> {v.resolution.get('width')}x{v.resolution.get('height')} | <b>Codec:</b> {v.codec}<br/>"
+            f"<b>Temporal Motion Jitter:</b> {v.temporal_jitter_score} | <b>Facial Boundary Disparity:</b> {'FLAGGED' if v.facial_boundary_anomaly else 'Normal'}<br/>"
+            f"<b>Keyframes Analyzed:</b> {v.keyframes_analyzed}"
+        )
+        story.append(Paragraph(v_info, body_text))
+        story.append(Spacer(1, 8))
 
-    story.append(Paragraph("Layer 2: Image Technical & Compression Diagnostics", section_heading))
-    tech = analysis.technical
-    tech_info = (
-        f"Noise Variance: {tech.noise_variance} | Laplacian Sharpness: {tech.laplacian_variance_blur} | "
-        f"ELA Mean Diff: {tech.ela_mean_difference} (Anomaly: {'Flagged' if tech.ela_anomaly_detected else 'None'})<br/>"
-        f"Observation: {tech.compression_observation}"
-    )
-    story.append(Paragraph(tech_info, body_text))
-    story.append(Spacer(1, 8))
+    elif analysis.modality == "audio" and analysis.audio_diagnostics:
+        a = analysis.audio_diagnostics
+        story.append(Paragraph("Acoustic & Voice Cloning Diagnostics", section_heading))
+        a_info = (
+            f"<b>Duration:</b> {a.duration_seconds}s | <b>Sample Rate:</b> {a.sample_rate_hz}Hz | <b>Channels:</b> {a.channels} | <b>Format:</b> {a.format}<br/>"
+            f"<b>Speech/Pause Ratio:</b> {int(a.speech_silence_ratio*100)}% | <b>Unnatural Continuous Speech:</b> {'FLAGGED' if a.unnatural_pause_detected else 'Normal'}<br/>"
+            f"<b>Voice Synthesis Index:</b> {a.synthetic_prosody_score}/100 | <b>Spectral Cutoff:</b> {'Detected' if a.spectral_cutoff_observed else 'None'}"
+        )
+        story.append(Paragraph(a_info, body_text))
+        story.append(Spacer(1, 8))
 
-    story.append(Paragraph("Layer 3: Gemini Multimodal AI Reasoning", section_heading))
+    elif analysis.modality == "text" and analysis.text_diagnostics:
+        t = analysis.text_diagnostics
+        story.append(Paragraph("Text Stylometry & Synthetic Narrative Diagnostics", section_heading))
+        t_info = (
+            f"<b>Word Count:</b> {t.word_count} | <b>Sentence Count:</b> {t.sentence_count} | <b>Lexical Diversity (TTR):</b> {t.lexical_diversity_ttr}<br/>"
+            f"<b>Syntactic Burstiness σ:</b> {t.burstiness_score} | <b>AI Generation Assessment:</b> {t.ai_generation_likelihood}"
+        )
+        story.append(Paragraph(t_info, body_text))
+        story.append(Spacer(1, 8))
+
+    else:
+        # Image
+        story.append(Paragraph("Image Diagnostics (Error Level Analysis & Noise)", section_heading))
+        tech = analysis.technical
+        tech_info = (
+            f"Noise Variance: {tech.noise_variance} | Laplacian Sharpness: {tech.laplacian_variance_blur} | "
+            f"ELA Mean Diff: {tech.ela_mean_difference} (Anomaly: {'Flagged' if tech.ela_anomaly_detected else 'None'})<br/>"
+            f"Observation: {tech.compression_observation}"
+        )
+        story.append(Paragraph(tech_info, body_text))
+        story.append(Spacer(1, 8))
+
+    # 5. Gemini AI Multimodal Reasoning
+    story.append(Paragraph("Multimodal AI Contextual Reasoning", section_heading))
     ai = analysis.ai_analysis
     ai_info = (
-        f"<b>Scene Analysis:</b> {ai.scene_description}<br/>"
-        f"<b>Lighting Physics:</b> {ai.lighting_physics}<br/>"
+        f"<b>Content Scene Analysis:</b> {ai.scene_description}<br/>"
+        f"<b>Physical/Optical Logic:</b> {ai.lighting_physics}<br/>"
         f"<b>Structural Geometry:</b> {ai.anatomical_or_structural_consistency}"
     )
     story.append(Paragraph(ai_info, body_text))
     story.append(Spacer(1, 8))
 
+    # 6. Caption / Claim Cross-Verification if provided
     if analysis.caption_comparison.caption_provided:
-        story.append(Paragraph("Layer 4: Caption / Claim Cross-Verification", section_heading))
+        story.append(Paragraph("Narrative Claim Cross-Verification", section_heading))
         cap = analysis.caption_comparison
         cap_info = (
             f"<b>Claim:</b> \"{cap.caption_text}\"<br/>"
@@ -162,9 +188,8 @@ def generate_pdf_report(analysis: FullAnalysisResponse) -> str:
         story.append(Paragraph(cap_info, body_text))
         story.append(Spacer(1, 8))
 
-    # 5. Evidence Scorecard Table
-    story.append(Paragraph("Evidence Scorecard (Primary Forensic Traceability)", section_heading))
-    
+    # 7. Evidence Scorecard Table
+    story.append(Paragraph("Evidence Scorecard (Forensic Traceability)", section_heading))
     scorecard_data = [
         [
             Paragraph("<b>Layer / Title</b>", bold_label),
@@ -192,12 +217,7 @@ def generate_pdf_report(analysis: FullAnalysisResponse) -> str:
     story.append(sc_table)
     story.append(Spacer(1, 14))
 
-    # 6. Limitations & Human Verification Disclaimer
-    story.append(Paragraph("Methodology Limitations & Legal Disclaimer", section_heading))
-    limitations_text = "<br/>• ".join([""] + analysis.limitations)
-    story.append(Paragraph(limitations_text, body_text))
-    story.append(Spacer(1, 8))
-
+    # 8. Disclaimer
     disclaimer_text = (
         "<b>LEGAL & JUDICIAL DISCLAIMER:</b> TruthLens is an automated diagnostic and decision-support system. "
         "The Suspicious Indicator Score is a heuristic synthesis of anomaly signals, NOT mathematical proof of fraud. "

@@ -88,12 +88,12 @@ export const TechnicalViewer: React.FC<TechnicalViewerProps> = ({ technical }) =
           <div>
             <div className="flex justify-between text-slate-300 mb-1">
               <span>Red Channel (R)</span>
-              <span className="text-rose-400 font-bold">{technical.color_channel_balance.red_mean}</span>
+              <span className="text-rose-400 font-bold">{technical.color_channel_balance.red_mean ?? 0}</span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div 
                 className="bg-rose-500 h-full rounded-full transition-all duration-700"
-                style={{ width: `${(technical.color_channel_balance.red_mean / 255) * 100}%` }}
+                style={{ width: `${((technical.color_channel_balance.red_mean || 0) / 255) * 100}%` }}
               />
             </div>
           </div>
@@ -102,12 +102,12 @@ export const TechnicalViewer: React.FC<TechnicalViewerProps> = ({ technical }) =
           <div>
             <div className="flex justify-between text-slate-300 mb-1">
               <span>Green Channel (G)</span>
-              <span className="text-emerald-400 font-bold">{technical.color_channel_balance.green_mean}</span>
+              <span className="text-emerald-400 font-bold">{technical.color_channel_balance.green_mean ?? 0}</span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div 
                 className="bg-emerald-500 h-full rounded-full transition-all duration-700"
-                style={{ width: `${(technical.color_channel_balance.green_mean / 255) * 100}%` }}
+                style={{ width: `${((technical.color_channel_balance.green_mean || 0) / 255) * 100}%` }}
               />
             </div>
           </div>
@@ -116,12 +116,12 @@ export const TechnicalViewer: React.FC<TechnicalViewerProps> = ({ technical }) =
           <div>
             <div className="flex justify-between text-slate-300 mb-1">
               <span>Blue Channel (B)</span>
-              <span className="text-blue-400 font-bold">{technical.color_channel_balance.blue_mean}</span>
+              <span className="text-blue-400 font-bold">{technical.color_channel_balance.blue_mean ?? 0}</span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div 
                 className="bg-blue-500 h-full rounded-full transition-all duration-700"
-                style={{ width: `${(technical.color_channel_balance.blue_mean / 255) * 100}%` }}
+                style={{ width: `${((technical.color_channel_balance.blue_mean || 0) / 255) * 100}%` }}
               />
             </div>
           </div>

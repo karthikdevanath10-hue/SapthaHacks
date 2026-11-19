@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000,
+  timeout: 90000,
 });
 
 export const apiService = {
@@ -18,17 +18,29 @@ export const apiService = {
     }
   },
 
-  async analyzeImage(
-    file: File,
-    caption?: string,
-    sourceContext?: string,
-    userId?: string
-  ): Promise<FullAnalysisResponse> {
+  async analyzeMedia(params: {
+    file?: File | null;
+    textContent?: string;
+    caption?: string;
+    sourceContext?: string;
+    userId?: string;
+  }): Promise<FullAnalysisResponse> {
     const formData = new FormData();
-    formData.append('file', file);
-    if (caption && caption.trim()) formData.append('caption', caption.trim());
-    if (sourceContext && sourceContext.trim()) formData.append('source_context', sourceContext.trim());
-    if (userId) formData.append('user_id', userId);
+    if (params.file) {
+      formData.append('file', params.file);
+    }
+    if (params.textContent && params.textContent.trim()) {
+      formData.append('text_content', params.textContent.trim());
+    }
+    if (params.caption && params.caption.trim()) {
+      formData.append('caption', params.caption.trim());
+    }
+    if (params.sourceContext && params.sourceContext.trim()) {
+      formData.append('source_context', params.sourceContext.trim());
+    }
+    if (params.userId) {
+      formData.append('user_id', params.userId);
+    }
 
     const res = await apiClient.post<FullAnalysisResponse>('/analyze', formData, {
       headers: {

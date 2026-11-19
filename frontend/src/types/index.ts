@@ -1,7 +1,9 @@
+export type MediaModality = 'image' | 'video' | 'audio' | 'text';
+
 export interface EvidenceItem {
   id: string;
   title: string;
-  layer: 'Metadata Analysis' | 'Technical Forensics' | 'AI Visual Verification' | 'Caption Cross-Verification';
+  layer: string;
   severity: 'informational' | 'low' | 'medium' | 'suspicious';
   confidence: 'High Confidence' | 'Moderate Confidence' | 'Preliminary Observation';
   explanation: string;
@@ -40,13 +42,53 @@ export interface TechnicalResult {
   ela_mean_difference: number;
   ela_anomaly_detected: boolean;
   color_channel_balance: {
-    red_mean: number;
-    green_mean: number;
-    blue_mean: number;
+    red_mean?: number;
+    green_mean?: number;
+    blue_mean?: number;
   };
   brightness_mean: number;
   contrast_std: number;
   compression_observation: string;
+  observations: string[];
+  suspicious_indicators: string[];
+}
+
+export interface VideoDiagnostics {
+  duration_seconds: number;
+  fps: number;
+  frame_count: number;
+  resolution: { width: number; height: number };
+  codec: string;
+  temporal_jitter_score: number;
+  facial_boundary_anomaly: boolean;
+  keyframes_analyzed: number;
+  deepfake_visual_cues: string[];
+  observations: string[];
+  suspicious_indicators: string[];
+}
+
+export interface AudioDiagnostics {
+  duration_seconds: number;
+  sample_rate_hz: number;
+  channels: number;
+  bitrate_kbps?: number;
+  format: string;
+  speech_silence_ratio: number;
+  unnatural_pause_detected: boolean;
+  synthetic_prosody_score: number;
+  spectral_cutoff_observed: boolean;
+  observations: string[];
+  suspicious_indicators: string[];
+}
+
+export interface TextDiagnostics {
+  word_count: number;
+  sentence_count: number;
+  lexical_diversity_ttr: number;
+  burstiness_score: number;
+  ai_generation_likelihood: string;
+  stylometric_markers: string[];
+  factuality_flags: string[];
   observations: string[];
   suspicious_indicators: string[];
 }
@@ -66,7 +108,7 @@ export interface CaptionComparisonResult {
   caption_provided: boolean;
   caption_text?: string;
   source_context?: string;
-  consistency_verdict: 'Consistent' | 'Mismatched / Contradictory' | 'Partially Inconsistent' | 'No Caption Provided';
+  consistency_verdict: string;
   discrepancy_details: string[];
   semantic_match_score: number;
   explanation: string;
@@ -74,6 +116,7 @@ export interface CaptionComparisonResult {
 
 export interface FullAnalysisResponse {
   investigation_id: string;
+  modality: MediaModality;
   image_name: string;
   image_hash: string;
   assessment: string;
@@ -83,6 +126,9 @@ export interface FullAnalysisResponse {
   technical: TechnicalResult;
   ai_analysis: AIVisualResult;
   caption_comparison: CaptionComparisonResult;
+  video_diagnostics?: VideoDiagnostics;
+  audio_diagnostics?: AudioDiagnostics;
+  text_diagnostics?: TextDiagnostics;
   evidence_scorecard: EvidenceItem[];
   limitations: string[];
   recommendations: string[];

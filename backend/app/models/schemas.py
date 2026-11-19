@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any
 class EvidenceItem(BaseModel):
     id: str
     title: str
-    layer: str  # "Metadata Analysis", "Technical Forensics", "AI Visual Verification", "Caption Cross-Verification"
+    layer: str  # "Metadata Analysis", "Technical Forensics", "AI Visual Verification", "Audio Acoustic Forensics", "Temporal Video Forensics", "Text Stylometry", "Caption Cross-Verification"
     severity: str  # "informational", "low", "medium", "suspicious"
     confidence: str  # "High Confidence", "Moderate Confidence", "Preliminary Observation"
     explanation: str
@@ -32,14 +32,51 @@ class MetadataResult(BaseModel):
     suspicious_indicators: List[str] = []
 
 class TechnicalResult(BaseModel):
-    noise_variance: float
-    laplacian_variance_blur: float
-    ela_mean_difference: float
-    ela_anomaly_detected: bool
-    color_channel_balance: Dict[str, float]
-    brightness_mean: float
-    contrast_std: float
-    compression_observation: str
+    noise_variance: float = 0.0
+    laplacian_variance_blur: float = 0.0
+    ela_mean_difference: float = 0.0
+    ela_anomaly_detected: bool = False
+    color_channel_balance: Dict[str, float] = {}
+    brightness_mean: float = 0.0
+    contrast_std: float = 0.0
+    compression_observation: str = "Standard compression profile."
+    observations: List[str] = []
+    suspicious_indicators: List[str] = []
+
+class VideoDiagnostics(BaseModel):
+    duration_seconds: float
+    fps: float
+    frame_count: int
+    resolution: Dict[str, int]
+    codec: str
+    temporal_jitter_score: float
+    facial_boundary_anomaly: bool
+    keyframes_analyzed: int
+    deepfake_visual_cues: List[str] = []
+    observations: List[str] = []
+    suspicious_indicators: List[str] = []
+
+class AudioDiagnostics(BaseModel):
+    duration_seconds: float
+    sample_rate_hz: int
+    channels: int
+    bitrate_kbps: Optional[int] = None
+    format: str
+    speech_silence_ratio: float
+    unnatural_pause_detected: bool
+    synthetic_prosody_score: float  # 0.0 to 100.0
+    spectral_cutoff_observed: bool
+    observations: List[str] = []
+    suspicious_indicators: List[str] = []
+
+class TextDiagnostics(BaseModel):
+    word_count: int
+    sentence_count: int
+    lexical_diversity_ttr: float  # Type-Token Ratio
+    burstiness_score: float
+    ai_generation_likelihood: str  # "Low Likelihood", "Moderate Likelihood", "High Synthetic Probability"
+    stylometric_markers: List[str] = []
+    factuality_flags: List[str] = []
     observations: List[str] = []
     suspicious_indicators: List[str] = []
 
@@ -65,6 +102,7 @@ class CaptionComparisonResult(BaseModel):
 class InvestigationRecord(BaseModel):
     id: str
     user_id: Optional[str] = None
+    modality: str = "image"
     image_name: str
     image_storage_path: Optional[str] = None
     image_hash: str
@@ -78,6 +116,7 @@ class InvestigationRecord(BaseModel):
 
 class FullAnalysisResponse(BaseModel):
     investigation_id: str
+    modality: str = "image"  # "image", "video", "audio", "text"
     image_name: str
     image_hash: str
     assessment: str
@@ -87,6 +126,9 @@ class FullAnalysisResponse(BaseModel):
     technical: TechnicalResult
     ai_analysis: AIVisualResult
     caption_comparison: CaptionComparisonResult
+    video_diagnostics: Optional[VideoDiagnostics] = None
+    audio_diagnostics: Optional[AudioDiagnostics] = None
+    text_diagnostics: Optional[TextDiagnostics] = None
     evidence_scorecard: List[EvidenceItem]
     limitations: List[str]
     recommendations: List[str]
