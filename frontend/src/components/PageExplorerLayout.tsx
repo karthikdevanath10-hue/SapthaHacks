@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Camera, Image as ImageIcon, Video, Mic, FileText, ShieldCheck,
-  Database, Globe, BarChart3, Search, User, Download, Trash2,
+  Database, Globe, BarChart3, Search, User, LogOut, Download, Trash2,
   RefreshCw, Plus, ArrowRight, CheckCircle2, AlertTriangle,
   ShieldAlert, Sparkles, FolderOpen, ChevronRight, Layers,
   UploadCloud, Play, Square, Radio, ExternalLink, Zap, X, Circle,
@@ -1267,10 +1267,10 @@ interface VaultFileItem {
             {currentUser ? (
               <button
                 onClick={onSignOut}
-                title="Sign Out"
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-purple-900/40 border border-purple-500/50 flex items-center justify-center text-purple-300 hover:text-white hover:border-purple-400 transition cursor-pointer shadow-md"
+                title="Sign Out / Logout"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-purple-900/40 border border-purple-500/50 hover:border-rose-400/60 hover:bg-rose-950/50 flex items-center justify-center text-purple-300 hover:text-rose-200 transition cursor-pointer shadow-md group"
               >
-                <User className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-300 group-hover:text-rose-200" />
               </button>
             ) : (
               <button
@@ -2352,6 +2352,7 @@ interface VaultFileItem {
                   }}
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-500/40 text-rose-300 hover:text-white text-xs font-semibold flex items-center justify-center space-x-2 transition cursor-pointer"
                 >
+                  <LogOut className="w-3.5 h-3.5 text-rose-300" />
                   <span>Sign Out Session</span>
                 </button>
               ) : (
