@@ -22,8 +22,9 @@ from app.models.schemas import (
     FullAnalysisResponse, AnalyzerRun, EvidenceItem,
     VideoDiagnostics, AudioDiagnostics, TextDiagnostics,
     QualityGateResult, TechnicalResult, MetadataResult,
-    AIVisualResult, CaptionComparisonResult
+    AIVisualResult, CaptionComparisonResult, WebPresenceResult
 )
+from app.mcp import mcp_client, mcp_server
 from app.forensic.quality_gate import (
     assess_image_quality, assess_audio_quality,
     assess_video_quality, assess_text_quality
@@ -60,6 +61,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=getattr(settings, "CORS_ORIGIN_REGEX", r"^https:\/\/.*\.vercel\.app$"),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,9 +88,46 @@ async def health_check():
         "supabase_connected": supabase_service.is_connected(),
         "gemini_configured": bool(settings.GEMINI_API_KEY),
         "gemini_model": settings.GEMINI_MODEL,
+        "mcp_server_online": True,
+        "mcp_tools": [t["name"] for t in mcp_server.list_tools()],
         "models_loaded_at_startup": [],
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+# Model Context Protocol (MCP) Server Endpoints
+@app.get("/api/mcp/status")
+async def mcp_status():
+    return {
+        "status": "online",
+        "server_name": mcp_server.server_name,
+        "version": mcp_server.version,
+        "mcp_search_key_configured": bool(settings.MCP_SEARCH_API_KEY),
+        "tools": mcp_server.list_tools()
+    }
+
+@app.post("/api/mcp/tools/list")
+async def mcp_list_tools():
+    return {"tools": mcp_server.list_tools()}
+
+@app.post("/api/mcp/tools/call")
+async def mcp_call_tool(payload: dict):
+    tool_name = payload.get("name", "")
+    arguments = payload.get("arguments", {})
+    try:
+        result = await mcp_server.call_tool(tool_name, arguments)
+        return {"content": [{"type": "text", "text": str(result)}], "result": result, "isError": False}
+    except Exception as e:
+        return {"content": [{"type": "text", "text": str(e)}], "isError": True}
+
+@app.post("/api/mcp/search")
+async def mcp_direct_search(payload: dict):
+    query = payload.get("query", "")
+    modality = payload.get("modality", "image")
+    web_res, _ = await mcp_client.search_media_presence(
+        modality=modality,
+        custom_query=query
+    )
+    return web_res
 
 def detect_modality(filename: str, override: Optional[str] = None) -> str:
     if override and override.lower() in ["image", "video", "audio", "text"]:
@@ -271,6 +310,17 @@ async def analyze_multimodal_media(
                 explanation="Direct image analysis executed."
             )
 
+    # 2.5 Model Context Protocol (MCP) Web & Social Media Discovery
+    web_presence_res, mcp_evidence = await mcp_client.search_media_presence(
+        modality=modality,
+        visual_description=ai_res.scene_description if ai_res else "",
+        detected_entities=ai_res.detected_entities if ai_res else [],
+        caption=caption,
+        source_context=source_context
+    )
+    if mcp_evidence:
+        all_evidence.append(mcp_evidence)
+
     # 3. Multi-Layer Evidence Scorecard & Final Assessment Aggregation
     assessment, indicator_score, summary, scorecard, limitations, recommendations = synthesize_evidence_scorecard(
         metadata=metadata_res,
@@ -295,6 +345,7 @@ async def analyze_multimodal_media(
         technical=technical_res,
         ai_analysis=ai_res,
         caption_comparison=caption_res,
+        web_presence=web_presence_res,
         video_diagnostics=video_diag,
         audio_diagnostics=audio_diag,
         text_diagnostics=text_diag,

@@ -13,8 +13,12 @@ class Settings(BaseSettings):
     
     # AI & Cloud Configuration
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
-    GEMINI_FALLBACK_MODEL: str = ""
+    GEMINI_MODEL: str = "gemini-3.6-flash"
+    GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
+    
+    # Model Context Protocol (MCP) Server Configuration
+    MCP_SEARCH_API_KEY: str = ""
+    MCP_SERVER_ENABLED: bool = True
     
     # Supabase Configuration
     SUPABASE_URL: str = ""
@@ -24,9 +28,9 @@ class Settings(BaseSettings):
     RATE_LIMIT_ANALYZE: int = 30
     RATE_LIMIT_WINDOW_SECONDS: int = 600
     
-    # Upload & Storage settings
-    UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
-    REPORTS_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "reports_generated")
+    # Upload & Storage settings (Use /tmp when deployed to Vercel/serverless)
+    UPLOAD_DIR: str = "/tmp/uploads" if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) else os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+    REPORTS_DIR: str = "/tmp/reports_generated" if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) else os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "reports_generated")
     MAX_FILE_SIZE_MB: int = 50
     ALLOWED_EXTENSIONS: List[str] = [
         # Images
@@ -46,6 +50,7 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
+    CORS_ORIGIN_REGEX: str = r"^https:\/\/.*\.vercel\.app$"
 
     class Config:
         env_file = str(BACKEND_ROOT / ".env")

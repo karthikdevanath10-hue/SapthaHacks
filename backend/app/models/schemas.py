@@ -109,6 +109,25 @@ class CaptionComparisonResult(BaseModel):
     semantic_match_score: float = 1.0  # 0.0 to 1.0
     explanation: str
 
+class WebPresenceItem(BaseModel):
+    platform: str  # "Instagram", "Twitter / X", "Reddit", "TikTok", "YouTube", "News / Web", "Fact Check Registry"
+    title: str
+    url: Optional[str] = None
+    snippet: str
+    first_seen_date: Optional[str] = None
+    match_confidence: str = "High"  # "High", "Moderate", "Contextual"
+
+class WebPresenceResult(BaseModel):
+    mcp_server_connected: bool = True
+    found_online: bool = False
+    platforms_detected: List[str] = []
+    matches: List[WebPresenceItem] = []
+    provenance_verdict: str  # "Identified on Public Web & Socials (Repurposed Content)", "No Prior Web Matches Found (Novel / Potential AI Generation)", etc.
+    summary: str
+    search_query_used: str
+    timestamp: str
+    tools_invoked: List[str] = ["search_web_presence", "reverse_media_lookup"]
+
 class FindingExplanation(BaseModel):
     evidence_id: str
     observed: str
@@ -174,6 +193,7 @@ class FullAnalysisResponse(BaseModel):
     technical: TechnicalResult
     ai_analysis: AIVisualResult
     caption_comparison: CaptionComparisonResult
+    web_presence: Optional[WebPresenceResult] = None
     video_diagnostics: Optional[VideoDiagnostics] = None
     audio_diagnostics: Optional[AudioDiagnostics] = None
     text_diagnostics: Optional[TextDiagnostics] = None
