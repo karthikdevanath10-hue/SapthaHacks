@@ -1,23 +1,33 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
+        brand: {
+          bg: '#080F1F',
+          secondary: '#101B2D',
+          card: '#142238',
+          border: 'rgba(255, 255, 255, 0.08)',
+          primary: '#3B82F6',
+          cyan: '#22D3EE',
+          surface: '#0c1323',
+          'surface-dim': '#070e1e',
+        },
         cyber: {
-          950: '#070b14',
-          900: '#0b1329',
-          800: '#111d38',
-          700: '#1b2b4f',
-          600: '#263d6b',
+          950: '#080F1F',
+          900: '#101B2D',
+          800: '#142238',
+          700: '#1e2f4d',
+          600: '#273c61',
         },
         truth: {
-          blue: '#0284c7',
-          cyan: '#06b6d4',
+          blue: '#3B82F6',
+          cyan: '#22D3EE',
           glow: '#38bdf8',
           emerald: '#10b981',
           amber: '#f59e0b',
@@ -25,7 +35,7 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       animation: {
