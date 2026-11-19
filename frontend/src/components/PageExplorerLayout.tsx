@@ -60,6 +60,12 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Camera live capture states
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
   // Storage stats
   const [storageStats, setStorageStats] = useState<{
     total_size_bytes: number;
@@ -218,16 +224,93 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
     }
   };
 
-  const handleRunAnalysis = async (mod: MediaModality) => {
-    if (!selectedFile && !directText.trim()) {
-      setAnalysisError('Please upload a media file or provide text before commencing examination.');
+  // Live Camera Lifecycle & Stream Handlers
+  useEffect(() => {
+    if (isCameraActive && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch(e => console.warn('Camera video play error:', e));
+    }
+  }, [isCameraActive, cameraStream]);
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported by this browser.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+      setIsCameraActive(true);
+    } catch (err: any) {
+      console.error('Camera error:', err);
+      setCameraError(err.message || 'Could not access optical sensor. Please ensure camera permissions are granted.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setIsCameraActive(false);
+  };
+
+  const captureLiveImage = (autoTest: boolean = false) => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Flip horizontally to mirror user perspective naturally
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `live_capture_${timestamp}.jpg`;
+      const file = new File([blob], filename, { type: 'image/jpeg' });
+
+      // Stop camera hardware stream
+      stopCamera();
+
+      // Update state
+      setSelectedFile(file);
+      const url = URL.createObjectURL(blob);
+      setPreviewUrl(url);
+
+      if (autoTest) {
+        handleRunAnalysis('image', file);
+      }
+    }, 'image/jpeg', 0.95);
+  };
+
+  const handleRunAnalysis = async (mod: MediaModality, overrideFile?: File) => {
+    const targetFile = overrideFile || selectedFile;
+    if (!targetFile && !directText.trim()) {
+      setAnalysisError('Please upload a media file, capture a photo, or provide text before commencing examination.');
       return;
     }
     setIsAnalyzing(true);
     setAnalysisError(null);
     try {
       const res = await apiService.analyzeMedia({
-        file: selectedFile,
+        file: targetFile,
         textContent: directText,
         caption,
         sourceContext,
@@ -237,9 +320,9 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       fetchHistory();
       fetchStorage();
       let localBlobUrl: string | undefined;
-      if (selectedFile) {
+      if (targetFile) {
         try {
-          localBlobUrl = URL.createObjectURL(selectedFile);
+          localBlobUrl = URL.createObjectURL(targetFile);
           const reader = new FileReader();
           reader.onload = () => {
             try {
@@ -250,7 +333,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
               }
             } catch (e) {}
           };
-          reader.readAsDataURL(selectedFile);
+          reader.readAsDataURL(targetFile);
         } catch (e) {
           console.error(e);
         }
@@ -732,14 +815,113 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
                         onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])}
                       />
 
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-purple-600/30 transition cursor-pointer flex-shrink-0"
-                      >
-                        <UploadCloud className="w-4 h-4" />
-                        <span>Select Image File</span>
-                      </button>
+                      <div className="flex items-center gap-2.5 flex-shrink-0 flex-wrap">
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center space-x-2 shadow-lg shadow-purple-600/30 transition cursor-pointer"
+                        >
+                          <UploadCloud className="w-4 h-4" />
+                          <span>Select Image File</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (isCameraActive) {
+                              stopCamera();
+                            } else {
+                              startCamera();
+                            }
+                          }}
+                          className={`px-4 py-2.5 rounded-xl border font-semibold text-xs flex items-center space-x-2 transition cursor-pointer ${
+                            isCameraActive
+                              ? 'border-rose-500/50 bg-rose-950/60 text-rose-300 hover:bg-rose-900 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                              : 'border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 hover:text-white shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+                          }`}
+                        >
+                          <Camera className="w-4 h-4 text-cyan-400" />
+                          <span>{isCameraActive ? 'Close Camera' : 'Capture Live Image'}</span>
+                        </button>
+                      </div>
                     </div>
+
+                    {cameraError && (
+                      <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-xs text-rose-300 flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        <span>{cameraError}</span>
+                      </div>
+                    )}
+
+                    {isCameraActive && (
+                      <div className="relative rounded-2xl overflow-hidden border border-cyan-500/50 bg-slate-950 shadow-[0_0_30px_rgba(6,182,212,0.25)] p-4 space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between pb-2 border-b border-cyan-500/30">
+                          <div className="flex items-center space-x-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                            <span className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">
+                              Live Optical Sensor Acquisition
+                            </span>
+                          </div>
+                          <button
+                            onClick={stopCamera}
+                            className="p-1 rounded-lg border border-cyan-500/40 bg-cyan-950/60 text-cyan-300 hover:text-white transition cursor-pointer"
+                            title="Close Camera"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Video stream box with futuristic HUD reticle */}
+                        <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-cyan-500/30 shadow-inner">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover -scale-x-100"
+                          />
+                          
+                          {/* Sci-fi Crosshair / Corner Target Reticles */}
+                          <div className="absolute inset-4 pointer-events-none border border-cyan-500/20 rounded-lg flex flex-col justify-between p-2">
+                            <div className="flex justify-between text-[10px] font-mono text-cyan-400/80">
+                              <span>[CAM-01 ACTIVE]</span>
+                              <span>HD RESOLUTION</span>
+                            </div>
+                            <div className="self-center w-12 h-12 border border-cyan-400/40 rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                            </div>
+                            <div className="flex justify-between text-[10px] font-mono text-cyan-400/80">
+                              <span>ALIGN SUBJECT IN FRAME</span>
+                              <span>READY FOR FORENSIC SCAN</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Camera Actions Bar */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                          <button
+                            onClick={stopCamera}
+                            className="px-3.5 py-2 rounded-xl border border-purple-500/40 bg-slate-900 text-xs text-purple-300 hover:text-white transition cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => captureLiveImage(false)}
+                              className="px-4 py-2.5 rounded-xl border border-cyan-500/50 bg-cyan-950/70 hover:bg-cyan-900 text-cyan-200 font-semibold text-xs flex items-center space-x-1.5 transition cursor-pointer"
+                            >
+                              <Camera className="w-4 h-4 text-cyan-400" />
+                              <span>Snap Photo</span>
+                            </button>
+                            <button
+                              onClick={() => captureLiveImage(true)}
+                              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-bold text-xs flex items-center space-x-2 shadow-[0_0_20px_rgba(6,182,212,0.4)] transition cursor-pointer"
+                            >
+                              <Zap className="w-4 h-4" />
+                              <span>Capture & Test Immediately</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {selectedFile && (
                       <div className="pt-3 border-t border-purple-500/20 flex items-center justify-between text-xs">
