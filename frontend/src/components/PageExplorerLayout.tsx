@@ -316,12 +316,9 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
         <div className="my-auto py-3 space-y-4">
           
           {/* Dial Header */}
-          <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
+          <div className="border-b border-purple-500/20 pb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
               Select Capability
-            </span>
-            <span className="text-[10px] font-mono text-purple-400/70">
-              Touch to open →
             </span>
           </div>
 
