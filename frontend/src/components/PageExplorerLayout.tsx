@@ -402,12 +402,11 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
         </div>
 
         {/* 3. BOTTOM STATUS (Flush to lower end of screen) */}
-        <div className="pt-3 border-t border-purple-500/20 flex items-center justify-between text-[11px] text-purple-300/60 font-mono flex-shrink-0">
+        <div className="pt-2.5 border-t border-purple-500/20 flex items-center justify-center text-[10px] text-purple-300/60 font-mono flex-shrink-0">
           <div className="flex items-center space-x-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Operational</span>
+            <span>All Systems Operational</span>
           </div>
-          <span>ISO 27037 Compliant</span>
         </div>
 
       </div>
@@ -1157,7 +1156,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span>FastAPI Backend • Gemini 3.6 • Supabase PostgreSQL</span>
             </div>
-            <span>TruthLens Digital Forensics System • ISO 27037 Standard</span>
+            <span>TruthLens Digital Forensics System</span>
           </div>
 
         </div>
