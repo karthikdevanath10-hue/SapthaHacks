@@ -232,26 +232,6 @@ export const WelcomeIntroPage: React.FC<WelcomeIntroPageProps> = ({
               {/* TAB 1: 1-CLICK DEMO ACCESS (RECOMMENDED) */}
               {activeTab === 'demo' && (
                 <div className="space-y-4 pt-1">
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-950/50 via-slate-900/80 to-purple-950/30 border border-purple-500/40 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono text-purple-300 font-bold uppercase tracking-wider flex items-center space-x-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span>Instant Evaluator Demo</span>
-                      </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                        PS-04 READY
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-purple-200/80 leading-relaxed">
-                      Instant access with the <strong>Lead Forensic Examiner</strong> profile. Pre-configured with sample deepfakes, live WebRTC camera capture, and cloud storage syncing.
-                    </p>
-
-                    <div className="text-[11px] font-mono text-purple-400/80 pt-1">
-                      Account: <span className="text-white">lead.examiner@truthlens.ai</span>
-                    </div>
-                  </div>
-
                   <button
                     type="button"
                     onClick={handleDemoSignIn}
