@@ -40,7 +40,7 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
   const [investigations, setInvestigations] = useState<InvestigationSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [mobileView, setMobileView] = useState<'dial' | 'workspace'>('dial');
+  const [isDialCollapsed, setIsDialCollapsed] = useState<boolean>(false);
 
   // Modality file upload / analysis states for the right pane
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -134,7 +134,6 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
     if (isRecording) {
       stopRecording();
     }
-    setMobileView('workspace');
   };
 
   const handleFileChange = (file: File) => {
@@ -291,11 +290,33 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       {/* ======================================================== */}
       {/* LEFT COLUMN: FULL HEIGHT SEMI-CIRCULAR GLOWING ARC DIAL */}
       {/* FLUSH TO TOP END, LOWER END, AND LEFT SCREEN EDGE */}
+      {/* COLLAPSIBLE VIA GLOWING APEX DOT */}
       {/* ======================================================== */}
-      <div className={`${mobileView === 'workspace' ? 'hidden lg:flex' : 'flex'} w-full lg:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex-col justify-between relative z-20 select-none pl-6 sm:pl-8 pr-6 sm:pr-8 pt-5 sm:pt-6 pb-5 sm:pb-6 rounded-l-none rounded-t-none rounded-b-none rounded-r-[220px] sm:rounded-r-[280px] lg:rounded-r-[320px] bg-slate-950/85 border-y-0 border-l-0 border-r-2 border-r-purple-400/90 shadow-[0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl`}>
+      <div 
+        className={`w-[320px] sm:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col justify-between relative z-30 select-none pl-6 sm:pl-8 pr-6 sm:pr-8 pt-5 sm:pt-6 pb-6 sm:pb-8 rounded-l-none rounded-t-none rounded-b-none rounded-r-[220px] sm:rounded-r-[280px] lg:rounded-r-[320px] bg-slate-950/90 border-y-0 border-l-0 border-r-2 border-r-purple-400/90 shadow-[0_0_50px_rgba(168,85,247,0.35)] backdrop-blur-2xl transition-[margin] duration-500 ease-in-out ${
+          isDialCollapsed 
+            ? '-ml-[302px] sm:-ml-[362px] xl:-ml-[402px]' 
+            : 'ml-0'
+        }`}
+      >
         
-        {/* Glowing Neon Dot on the Arc Perimeter Apex */}
-        <div className="hidden lg:block absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-[0_0_16px_#c084fc] ring-4 ring-purple-500/50 animate-pulse" />
+        {/* Interactive Glowing Neon Apex Dot - Collapse & Expand Trigger */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsDialCollapsed(prev => !prev);
+          }}
+          title={isDialCollapsed ? "Tap to open capability dial" : "Tap to collapse dial"}
+          aria-label={isDialCollapsed ? "Open Page Explorer dial" : "Collapse Page Explorer dial"}
+          className="absolute -right-3.5 sm:-right-4 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white shadow-[0_0_20px_#c084fc,0_0_40px_rgba(168,85,247,0.8)] ring-4 ring-purple-500/70 hover:ring-purple-300 hover:scale-125 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer z-40 group"
+        >
+          {isDialCollapsed ? (
+            <ChevronRight className="w-4 h-4 text-purple-950 font-extrabold animate-pulse" />
+          ) : (
+            <div className="w-2.5 h-2.5 rounded-full bg-purple-700/50 group-hover:bg-purple-900 transition-colors" />
+          )}
+        </button>
 
         {/* 1. TOP BRAND LOGO (Flush to top end of screen) */}
         <div className="flex items-center space-x-3.5 border-b border-purple-500/20 pb-4 flex-shrink-0">
@@ -400,19 +421,24 @@ export const PageExplorerLayout: React.FC<PageExplorerLayoutProps> = ({
       {/* ======================================================== */}
       {/* RIGHT COLUMN: SEARCH HEADER + EXPANDED WORKSPACE GLASS PANEL */}
       {/* ======================================================== */}
-      <div className={`${mobileView === 'dial' ? 'hidden lg:flex' : 'flex'} flex-1 h-full min-h-0 flex-col p-4 sm:p-6 lg:p-7 pr-4 sm:pr-8 gap-3.5 overflow-hidden relative z-10`}>
+      <div className={`flex-1 h-full min-h-0 flex flex-col p-4 sm:p-6 lg:p-7 pr-4 sm:pr-8 gap-3.5 overflow-hidden relative z-10 transition-all duration-500 ${
+        isDialCollapsed ? 'pl-8 sm:pl-10' : 'pl-4 sm:pl-6'
+      }`}>
         
-        {/* Top Control Bar: Search Bar + Mobile Back Button + User Profile Avatar */}
+        {/* Top Control Bar: Search Bar + Capabilities Trigger + User Profile Avatar */}
         <div className="flex items-center justify-between flex-shrink-0 gap-3">
           
           <div className="flex items-center space-x-2 flex-1 max-w-lg">
-            {/* Mobile Back to Dial Button */}
-            <button
-              onClick={() => setMobileView('dial')}
-              className="lg:hidden px-3.5 py-1.5 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300 text-xs font-semibold flex items-center space-x-1 hover:text-white transition cursor-pointer shadow-md"
-            >
-              <span>← Dial</span>
-            </button>
+            {/* Quick Toggle Button when dial is collapsed */}
+            {isDialCollapsed && (
+              <button
+                type="button"
+                onClick={() => setIsDialCollapsed(false)}
+                className="px-3.5 py-1.5 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300 text-xs font-semibold flex items-center space-x-1 hover:text-white transition cursor-pointer shadow-md"
+              >
+                <span>← Capabilities</span>
+              </button>
+            )}
 
             {/* Search Input */}
             <div className="relative flex-1">
