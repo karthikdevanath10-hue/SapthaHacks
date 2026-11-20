@@ -7,10 +7,7 @@ from app.models.schemas import MetadataResult, EvidenceItem
 AI_SOFTWARE_SIGNATURES = [
     "stable diffusion", "midjourney", "dall-e", "comfyui", "automatic1111",
     "novelai", "adobe firefly", "bing image creator", "flux.1", "leonardo.ai",
-    "elevenlabs", "sora", "runway", "pika", "luma", "kling", "faceapp",
-    "remini", "photoleap", "facetune", "lensa", "generative fill", "c2pa",
-    "contentcredentials", "sdxl", "flux", "magnific", "topaz", "upscayl",
-    "clipdrop", "canva magic", "photoshop generative", "magic eraser", "meitu"
+    "elevenlabs", "sora", "runway", "pika", "luma", "kling"
 ]
 
 PHOTO_EDITING_SIGNATURES = [
