@@ -9,7 +9,8 @@ from app.models.schemas import TechnicalResult, EvidenceItem
 def perform_error_level_analysis(filepath: str, quality: int = 90) -> Tuple[float, bool, str]:
     """
     Performs Error Level Analysis (ELA) by resaving the image at a known quality
-    and computing difference scale against the original.
+    and computing difference scale against the original, analyzing both global
+    and block-level localized compression variance.
     """
     try:
         original = Image.open(filepath).convert("RGB")
@@ -21,24 +22,33 @@ def perform_error_level_analysis(filepath: str, quality: int = 90) -> Tuple[floa
         
         resaved = Image.open(buffer)
         
-        # Calculate absolute difference and enhance
+        # Calculate absolute difference
         diff = ImageChops.difference(original, resaved)
-        extrema = diff.getextrema()
-        max_diff = max([ex[1] for ex in extrema]) if extrema else 0
-        
-        # Scale difference
-        scale = 255.0 / max(max_diff, 1)
-        enhanced_diff = ImageEnhance.Brightness(diff).enhance(scale)
-        
         diff_np = np.array(diff, dtype=np.float32)
         mean_diff = float(np.mean(diff_np))
         std_diff = float(np.std(diff_np))
         
-        # Spliced or composited images often exhibit high standard deviation of error rates across regions
-        anomaly_detected = (std_diff > 18.0 and mean_diff > 12.0)
+        # Block-level ELA variance: split into 4x4 blocks to catch localized inpainting
+        h, w, _ = diff_np.shape
+        bh, bw = h // 4, w // 4
+        block_means = []
+        if bh > 8 and bw > 8:
+            for r in range(4):
+                for c in range(4):
+                    block = diff_np[r*bh:(r+1)*bh, c*bw:(c+1)*bw]
+                    block_means.append(float(np.mean(block)))
+            block_ratio = (max(block_means) / (min(block_means) + 1e-4)) if block_means else 1.0
+        else:
+            block_ratio = 1.0
+        
+        # Spliced or inpainted regions exhibit high block ratio or elevated variance
+        anomaly_detected = (
+            (std_diff > 12.0 and mean_diff > 8.0) or
+            (block_ratio > 3.0 and mean_diff > 2.0)
+        )
         observation = (
-            f"Mean ELA difference: {mean_diff:.2f}, Std Dev: {std_diff:.2f}. "
-            + ("Compression error gradient displays localized variance, suggesting possible multi-source compression or editing." 
+            f"Mean ELA difference: {mean_diff:.2f}, Std Dev: {std_diff:.2f}, Sector Error Divergence: {block_ratio:.2f}x. "
+            + ("Compression error gradient displays localized variance, suggesting possible multi-source compression or AI inpainting." 
                if anomaly_detected else "Compression error distribution appears relatively uniform across examined blocks.")
         )
         return mean_diff, anomaly_detected, observation
@@ -69,16 +79,18 @@ def analyze_technical_properties(filepath: str) -> Tuple[TechnicalResult, List[E
     noise_residual = cv2.absdiff(gray, blurred)
     noise_var = float(np.var(noise_residual))
 
-    # Quadrant noise variance check (to spot spliced regions with discordant noise levels)
-    h_mid, w_mid = height // 2, width // 2
-    quadrants = [
-        noise_residual[0:h_mid, 0:w_mid],
-        noise_residual[0:h_mid, w_mid:width],
-        noise_residual[h_mid:height, 0:w_mid],
-        noise_residual[h_mid:height, w_mid:width]
-    ]
-    quad_vars = [float(np.var(q)) for q in quadrants if q.size > 0]
-    max_quad_ratio = (max(quad_vars) / (min(quad_vars) + 1e-5)) if quad_vars else 1.0
+    # Multi-sector noise variance check (16-block grid to spot localized inpainting/spliced regions)
+    bh, bw = height // 4, width // 4
+    blocks = []
+    if bh > 8 and bw > 8:
+        for r in range(4):
+            for c in range(4):
+                b = noise_residual[r*bh:(r+1)*bh, c*bw:(c+1)*bw]
+                if b.size > 0:
+                    blocks.append(float(np.var(b)))
+    else:
+        blocks = [float(np.var(noise_residual))]
+    max_block_ratio = (max(blocks) / (min(blocks) + 1e-5)) if blocks else 1.0
 
     # 3. Color channel balance
     b_mean, g_mean, r_mean = [float(np.mean(cv_img[:, :, i])) for i in range(3)]
@@ -97,18 +109,18 @@ def analyze_technical_properties(filepath: str) -> Tuple[TechnicalResult, List[E
 
     # Forensic heuristics evaluation
     # A. Noise Inconsistency Check
-    if max_quad_ratio > 3.8 and noise_var > 15.0:
-        suspicious_indicators.append(f"Significant noise variance ratio across image segments ({max_quad_ratio:.2f}x difference)")
+    if max_block_ratio > 3.2 and noise_var > 8.0:
+        suspicious_indicators.append(f"Significant noise variance ratio across image segments ({max_block_ratio:.2f}x difference)")
         evidence_items.append(EvidenceItem(
             id="TECH-01",
             title="Localized Sensor Noise Discontinuity",
             layer="Technical Forensics",
             severity="medium",
             confidence="Moderate Confidence",
-            explanation=f"High-frequency sensor noise across image sectors diverges by a factor of {max_quad_ratio:.2f}x.",
-            why_flagged="Authentic photos from a single sensor show relatively homogeneous noise profiles; composited or spliced regions introduce discordant noise.",
-            limitations="Different lighting zones (e.g. deep shadow vs. bright sky) naturally exhibit differing noise levels without manipulation.",
-            evidence_source="High-Pass Spatial Residual Analysis",
+            explanation=f"High-frequency sensor noise across image sectors diverges by a factor of {max_block_ratio:.2f}x, consistent with localized generative inpainting or compositing.",
+            why_flagged="Authentic photos from a single optical sensor show relatively homogeneous noise profiles; composited or inpainted regions introduce discordant noise.",
+            limitations="High dynamic range lighting zones naturally exhibit differing noise levels without manipulation.",
+            evidence_source="16-Sector High-Pass Spatial Residual Analysis",
             score_impact=15
         ))
     elif noise_var < 2.5 and laplacian_var > 100:

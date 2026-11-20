@@ -16,7 +16,9 @@ Determine whether this image is:
 
 INDEPENDENT FORENSIC CRITERIA:
 1. HYBRID & LOCALIZED AI EDITING / INPAINTING SIGNATURES:
-   - Facial & Subject Inpainting: Unnatural generative skin smoothing contrasting with gritty background camera noise; plastic or wax-like texture on skin or hair.
+   - Facial & Subject Inpainting: Unnatural generative skin smoothing contrasting with gritty background camera noise; plastic or wax-like texture on skin or hair; AI beauty/retouching filters (FaceApp, Remini, etc.).
+   - Object Insertion / Removal / Generative Fill: Repetitive background cloning, smudged texture patches where an object was removed, or inserted items lacking true physical shadows.
+   - Outpainting / Generative Expansion: Real center photo surrounded by AI-synthesized periphery or background replacement.
    - Blending & Edge Halos: Faint blurring, feathering, or haloing along hairlines, neck seams, glasses frames, or body contours where an AI-generated or modified subject meets the real background.
    - Lighting & Vector Mismatches: Highlights, shadows, or reflections on the subject's face, eyes, or glasses that do not align with background light sources or ambient room illumination.
    - Micro-Anatomical Inconsistencies: Warped finger joints, unnatural fingernails, asymmetrical glasses ear-stems, or blurred ear connections.
